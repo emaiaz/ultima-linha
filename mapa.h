@@ -7,4 +7,10 @@ void inicializarMapa(Jogo *jogo);
 
 void adicionarPosicaoCaminho(Jogo *jogo, int linha, int coluna);
 
+void criarCaminho(Jogo *jogo);
+
+void exibirMapa(Jogo *jogo);
+
+void decorarMapa(Jogo *jogo);
+
 #endif
