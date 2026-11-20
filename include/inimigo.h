@@ -21,6 +21,8 @@ typedef struct
     float vida;
     float vidaMaxima;
     float velocidade;
+    float velocidadeOriginal;
+    float tempoLentidao;
 
     int danoBase;
     int recompensa;
@@ -41,5 +43,8 @@ void atualizarInimigos(Inimigo inimigos[], int quantidade,
 void desenharInimigos(Inimigo inimigos[], int quantidade,
                       Jogo *jogo, int posX, int posY,
                       int larguraCelula, int alturaCelula);
+
+void aplicarLentidao(Inimigo inimigos[], int indice,
+                     int quantidade, float duracao);
 
 #endif

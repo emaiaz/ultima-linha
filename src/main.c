@@ -34,72 +34,115 @@ static int fonteTituloCarregada = 0;
 static int fonteInterfaceCarregada = 0;
 
 static const Color COR_FUNDO = {12, 25, 29, 255};
-static const Color COR_DOURADO = {190, 151, 78, 255};
-static const Color COR_PELE = {204, 166, 132, 255};
+static const Color COR_DOURADO = {236, 190, 91, 255};
+static const Color COR_PELE = {224, 178, 137, 255};
+static const Color COR_PAINEL = {15, 24, 27, 248};
+static const Color COR_PAINEL_CLARO = {27, 40, 42, 255};
+static const Color COR_BORDA = {117, 91, 53, 255};
+static const Color COR_TEXTO = {245, 239, 218, 255};
+static const Color COR_ROXO = {151, 91, 210, 255};
 
-static void desenharTextoCentralizado(
-    const char *texto,
-    Font fonte,
-    float tamanho,
-    float y,
-    Color cor)
+static void desenharTextoUI(const char *texto, float x, float y, float tamanho, Color cor)
 {
-    Vector2 dimensoes = MeasureTextEx(
-        fonte,
-        texto,
-        tamanho,
-        1);
+    DrawTextEx(fonteInterface, texto, (Vector2){x, y}, tamanho, 1.0f, cor);
+}
+
+static void desenharTextoTitulo(const char *texto, float x, float y, float tamanho, Color cor)
+{
+    DrawTextEx(fonteTitulo, texto, (Vector2){x, y}, tamanho, 1.0f, cor);
+}
+
+static void desenharPainel(Rectangle area, Color fundo)
+{
+    DrawRectangleRounded(area, 0.12f, 8, fundo);
+    DrawRectangleRoundedLinesEx(area, 0.12f, 8, 2, COR_BORDA);
+
+    DrawLineEx(
+        (Vector2){area.x + 12, area.y + 3},
+        (Vector2){area.x + area.width - 12, area.y + 3},
+        1,
+        (Color){225, 185, 105, 100});
+}
+
+static void desenharTextoCentralizado(const char *texto, Font fonte, float tamanho, float y, Color cor)
+{
+    Vector2 dimensoes = MeasureTextEx(fonte, texto, tamanho, 1);
 
     DrawTextEx(
         fonte,
         texto,
-        (Vector2){
-            (LARGURA_TELA - dimensoes.x) / 2.0f,
-            y},
+        (Vector2){(LARGURA_TELA - dimensoes.x) / 2.0f, y},
         tamanho,
         1,
         cor);
 }
 
-static int desenharBotao(
-    Rectangle botao,
-    const char *texto,
-    int destaque)
+static void desenharContorno(Rectangle area, Color cor, float espessura)
+{
+    DrawRectangleRoundedLinesEx(area, 0.15f, 8, espessura, cor);
+}
+
+static int desenharBotao(Rectangle botao, const char *texto, int destaque)
 {
     Vector2 mouse = GetMousePosition();
-
     int sobre = CheckCollisionPointRec(mouse, botao);
+    float tempo = (float)GetTime();
 
-    Color fundo = (Color){15, 27, 30, 240};
-    Color borda = COR_DOURADO;
+    Color fundo = destaque
+                      ? (Color){65, 112, 78, 255}
+                      : (Color){39, 67, 76, 255};
+
+    Color borda = destaque
+                      ? (Color){189, 229, 132, 255}
+                      : (Color){125, 177, 184, 255};
+
     Color corTexto = RAYWHITE;
-
-    if (destaque)
-        fundo = (Color){54, 47, 29, 245};
 
     if (sobre)
     {
-        fundo = (Color){83, 68, 37, 250};
-        borda = GOLD;
-        corTexto = GOLD;
+        fundo = destaque
+                    ? (Color){88, 151, 94, 255}
+                    : (Color){55, 101, 112, 255};
+
+        borda = (Color){255, 229, 139, 255};
+    }
+
+    if (destaque)
+    {
+        DrawRectangleRounded(
+            (Rectangle){botao.x - 4, botao.y - 4, botao.width + 8, botao.height + 8},
+            0.2f,
+            8,
+            (Color){255, 218, 111, sobre ? 75 : 35});
     }
 
     DrawRectangleRounded(
-        botao,
+        (Rectangle){botao.x + 4, botao.y + 5, botao.width, botao.height},
         0.18f,
         8,
-        fundo);
+        (Color){5, 15, 20, 130});
 
-    DrawRectangleLinesEx(
-        botao,
-        sobre ? 3 : 2,
-        borda);
+    DrawRectangleRounded(botao, 0.18f, 8, fundo);
+    desenharContorno(botao, borda, sobre ? 4 : 3);
 
-    Vector2 tamanhoTexto = MeasureTextEx(
-        fonteInterface,
-        texto,
-        22,
-        1);
+    DrawLineEx(
+        (Vector2){botao.x + 15, botao.y + 7},
+        (Vector2){botao.x + botao.width - 15, botao.y + 7},
+        2,
+        (Color){255, 255, 255, 75});
+
+    if (destaque)
+    {
+        float brilho = 0.5f + sinf(tempo * 3.0f) * 0.5f;
+
+        DrawCircle(
+            (int)(botao.x + 22),
+            (int)(botao.y + botao.height / 2),
+            4 + brilho * 2,
+            (Color){255, 229, 137, 220});
+    }
+
+    Vector2 tamanhoTexto = MeasureTextEx(fonteInterface, texto, 25, 1);
 
     DrawTextEx(
         fonteInterface,
@@ -107,230 +150,220 @@ static int desenharBotao(
         (Vector2){
             botao.x + (botao.width - tamanhoTexto.x) / 2,
             botao.y + (botao.height - tamanhoTexto.y) / 2},
-        22,
+        25,
         1,
         corTexto);
 
-    return sobre &&
-           IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+    return sobre && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+}
+
+static void desenharNuvem(float x, float y, float escala)
+{
+    Color nuvem = (Color){196, 218, 211, 190};
+
+    DrawEllipse((int)x, (int)y, 48 * escala, 17 * escala, nuvem);
+    DrawCircle((int)(x - 23 * escala), (int)(y - 7 * escala), 17 * escala, nuvem);
+    DrawCircle((int)x, (int)(y - 14 * escala), 23 * escala, nuvem);
+    DrawCircle((int)(x + 25 * escala), (int)(y - 5 * escala), 16 * escala, nuvem);
 }
 
 static void desenharMontanhas(void)
 {
     DrawTriangle(
-        (Vector2){0, 330},
-        (Vector2){220, 95},
-        (Vector2){440, 330},
-        (Color){35, 58, 65, 255});
+        (Vector2){0, 380},
+        (Vector2){210, 120},
+        (Vector2){450, 380},
+        (Color){47, 82, 96, 255});
 
     DrawTriangle(
-        (Vector2){240, 330},
-        (Vector2){520, 125},
-        (Vector2){800, 330},
-        (Color){43, 67, 70, 255});
+        (Vector2){230, 380},
+        (Vector2){520, 90},
+        (Vector2){850, 380},
+        (Color){57, 99, 105, 255});
 
     DrawTriangle(
-        (Vector2){650, 330},
-        (Vector2){940, 85},
-        (Vector2){1220, 330},
-        (Color){34, 56, 64, 255});
+        (Vector2){620, 380},
+        (Vector2){940, 115},
+        (Vector2){1280, 380},
+        (Color){42, 78, 91, 255});
 
     DrawTriangle(
-        (Vector2){990, 330},
-        (Vector2){1160, 150},
-        (Vector2){1380, 330},
-        (Color){28, 48, 57, 255});
+        (Vector2){210, 120},
+        (Vector2){165, 185},
+        (Vector2){275, 175},
+        (Color){215, 230, 222, 255});
 
     DrawTriangle(
-        (Vector2){220, 95},
-        (Vector2){165, 165},
-        (Vector2){270, 150},
-        (Color){170, 185, 179, 255});
+        (Vector2){520, 90},
+        (Vector2){455, 170},
+        (Vector2){590, 160},
+        (Color){225, 236, 226, 255});
 
     DrawTriangle(
-        (Vector2){520, 125},
-        (Vector2){455, 190},
-        (Vector2){570, 175},
-        (Color){180, 192, 185, 255});
+        (Vector2){940, 115},
+        (Vector2){870, 185},
+        (Vector2){1010, 180},
+        (Color){218, 231, 224, 255});
 
     DrawTriangle(
-        (Vector2){940, 85},
-        (Vector2){875, 155},
-        (Vector2){1000, 160},
-        (Color){180, 192, 185, 255});
+        (Vector2){0, 380},
+        (Vector2){210, 120},
+        (Vector2){450, 380},
+        (Color){255, 255, 255, 18});
+
+    DrawTriangle(
+        (Vector2){230, 380},
+        (Vector2){520, 90},
+        (Vector2){850, 380},
+        (Color){255, 255, 255, 15});
 }
 
-static void desenharArvore(
-    int x,
-    int y,
-    float escala)
+static void desenharArvoreMenu(float x, float y, float escala, Color cor)
 {
     DrawRectangle(
-        x - (int)(8 * escala),
-        y,
+        (int)(x - 8 * escala),
+        (int)y,
         (int)(16 * escala),
-        (int)(85 * escala),
-        (Color){67, 48, 33, 255});
+        (int)(65 * escala),
+        (Color){91, 62, 40, 255});
 
     DrawTriangle(
         (Vector2){x, y - 100 * escala},
-        (Vector2){x - 45 * escala, y - 15 * escala},
-        (Vector2){x + 45 * escala, y - 15 * escala},
-        (Color){19, 66, 49, 255});
+        (Vector2){x - 48 * escala, y - 12 * escala},
+        (Vector2){x + 48 * escala, y - 12 * escala},
+        cor);
 
     DrawTriangle(
-        (Vector2){x, y - 65 * escala},
-        (Vector2){x - 55 * escala, y + 15 * escala},
-        (Vector2){x + 55 * escala, y + 15 * escala},
-        (Color){25, 82, 55, 255});
+        (Vector2){x, y - 70 * escala},
+        (Vector2){x - 58 * escala, y + 22 * escala},
+        (Vector2){x + 58 * escala, y + 22 * escala},
+        (Color){cor.r > 20 ? cor.r - 8 : cor.r, cor.g > 15 ? cor.g - 12 : cor.g, cor.b, 255});
+
+    DrawCircle(
+        (int)(x - 15 * escala),
+        (int)(y - 35 * escala),
+        5 * escala,
+        (Color){116, 168, 99, 255});
 }
 
 static void desenharYggdrasil(void)
 {
-    DrawRectangle(
-        600, 135,
-        80, 270,
-        (Color){83, 65, 42, 255});
+    float tempo = (float)GetTime();
+    float pulso = sinf(tempo * 2.0f) * 4.0f;
 
-    DrawRectangle(
-        616, 135,
-        18, 270,
-        (Color){111, 86, 51, 255});
+    DrawCircle(640, 220, 180 + pulso, (Color){68, 166, 113, 25});
+    DrawCircle(640, 220, 145 + pulso, (Color){76, 190, 117, 22});
 
     DrawLineEx(
-        (Vector2){640, 205},
-        (Vector2){470, 80},
-        20,
-        (Color){91, 73, 47, 255});
+        (Vector2){640, 390},
+        (Vector2){640, 115},
+        45,
+        (Color){100, 75, 45, 255});
 
     DrawLineEx(
-        (Vector2){640, 205},
-        (Vector2){800, 70},
-        20,
-        (Color){91, 73, 47, 255});
+        (Vector2){640, 300},
+        (Vector2){460, 125},
+        25,
+        (Color){111, 81, 47, 255});
 
     DrawLineEx(
-        (Vector2){640, 265},
-        (Vector2){430, 190},
-        16,
-        (Color){91, 73, 47, 255});
+        (Vector2){640, 270},
+        (Vector2){810, 110},
+        25,
+        (Color){111, 81, 47, 255});
 
     DrawLineEx(
-        (Vector2){640, 265},
-        (Vector2){850, 180},
-        16,
-        (Color){91, 73, 47, 255});
+        (Vector2){640, 235},
+        (Vector2){420, 205},
+        18,
+        (Color){111, 81, 47, 255});
 
-    DrawCircle(640, 115, 105, (Color){20, 75, 49, 255});
-    DrawCircle(555, 145, 70, (Color){27, 91, 55, 255});
-    DrawCircle(720, 145, 75, (Color){24, 84, 53, 255});
-    DrawCircle(640, 55, 65, (Color){31, 102, 61, 255});
+    DrawLineEx(
+        (Vector2){640, 235},
+        (Vector2){860, 195},
+        18,
+        (Color){111, 81, 47, 255});
 
-    DrawCircle(640, 135, 7, GOLD);
-    DrawCircle(570, 110, 4, (Color){130, 190, 155, 255});
-    DrawCircle(710, 95, 4, (Color){130, 190, 155, 255});
+    DrawCircle(640, 145, 104, (Color){31, 112, 69, 255});
+    DrawCircle(555, 180, 77, (Color){38, 132, 75, 255});
+    DrawCircle(720, 170, 83, (Color){35, 122, 68, 255});
+    DrawCircle(640, 75, 66, (Color){48, 143, 77, 255});
+    DrawCircle(485, 170, 45, (Color){43, 119, 72, 255});
+    DrawCircle(790, 155, 48, (Color){43, 119, 72, 255});
+
+    DrawCircle(640, 145, 12 + pulso * 0.4f, (Color){255, 221, 113, 255});
+    DrawCircle(640, 145, 5, WHITE);
+
+    for (int i = 0; i < 18; i++)
+    {
+        float angulo = tempo * 0.4f + i * 0.75f;
+        float raio = 85 + (i % 4) * 18;
+        float x = 640 + cosf(angulo) * raio;
+        float y = 180 + sinf(angulo) * raio * 0.65f;
+
+        DrawCircle((int)x, (int)y, 2 + (i % 3), (Color){180, 242, 150, 190});
+    }
 }
 
-static void desenharMonstroDraugr(int x, int y)
+static void desenharCenarioMenu(void)
 {
-    Color pele = (Color){80, 112, 82, 255};
+    float tempo = (float)GetTime();
 
-    DrawCircle(x, y, 30, pele);
+    ClearBackground((Color){93, 166, 177, 255});
 
-    DrawRectangle(
-        x - 27, y + 20,
-        54, 55,
-        (Color){40, 63, 49, 255});
+    DrawRectangleGradientV(
+        0, 0,
+        LARGURA_TELA, ALTURA_TELA,
+        (Color){87, 160, 181, 255},
+        (Color){192, 215, 176, 255});
 
-    DrawCircle(x - 10, y, 5, RED);
-    DrawCircle(x + 10, y, 5, RED);
+    DrawCircle(1030, 115, 72, (Color){255, 229, 153, 75});
+    DrawCircle(1030, 115, 45, (Color){255, 230, 164, 255});
 
-    DrawLine(
-        x - 10, y + 15,
-        x + 10, y + 15,
-        BLACK);
-}
+    desenharNuvem(160 + sinf(tempo * 0.15f) * 18, 145, 0.9f);
+    desenharNuvem(390 + sinf(tempo * 0.12f) * 12, 90, 0.65f);
+    desenharNuvem(1090 + sinf(tempo * 0.16f) * 15, 210, 0.8f);
 
-static void desenharMonstroFenrir(int x, int y)
-{
-    Color pelo = (Color){73, 83, 82, 255};
+    desenharMontanhas();
 
-    DrawCircle(x, y, 35, pelo);
+    DrawRectangleGradientV(
+        0, 350,
+        LARGURA_TELA, 370,
+        (Color){77, 146, 87, 255},
+        (Color){34, 89, 57, 255});
 
-    DrawTriangle(
-        (Vector2){x - 28, y - 15},
-        (Vector2){x - 42, y - 60},
-        (Vector2){x - 5, y - 32},
-        pelo);
+    DrawEllipse(640, 460, 390, 115, (Color){115, 172, 96, 255});
+    DrawEllipse(640, 485, 310, 75, (Color){139, 187, 103, 255});
 
-    DrawTriangle(
-        (Vector2){x + 28, y - 15},
-        (Vector2){x + 42, y - 60},
-        (Vector2){x + 5, y - 32},
-        pelo);
+    desenharYggdrasil();
 
-    DrawCircle(x - 12, y, 5, GOLD);
-    DrawCircle(x + 12, y, 5, GOLD);
+    desenharArvoreMenu(55, 430, 1.45f, (Color){29, 92, 57, 255});
+    desenharArvoreMenu(170, 450, 1.0f, (Color){35, 111, 62, 255});
+    desenharArvoreMenu(1100, 430, 1.45f, (Color){29, 92, 57, 255});
+    desenharArvoreMenu(1210, 450, 1.0f, (Color){35, 111, 62, 255});
 
-    DrawTriangle(
-        (Vector2){x, y + 15},
-        (Vector2){x - 12, y + 5},
-        (Vector2){x + 12, y + 5},
-        (Color){35, 38, 38, 255});
-}
+    for (int i = 0; i < 35; i++)
+    {
+        float x = (float)((i * 137) % LARGURA_TELA);
+        float y = 375 + (float)((i * 43) % 260);
+        float movimento = sinf(tempo * 1.5f + i) * 5.0f;
 
-static void desenharMonstroTroll(int x, int y)
-{
-    Color pele = (Color){88, 113, 75, 255};
+        DrawCircle((int)(x + movimento), (int)y, 2 + (i % 3), (Color){210, 236, 145, 190});
+    }
 
-    DrawCircle(x, y - 25, 35, pele);
+    for (int i = 0; i < 12; i++)
+    {
+        float x = (float)((i * 113) % LARGURA_TELA);
+        float y = 580 + sinf(tempo * 1.8f + i) * 13;
 
-    DrawRectangle(
-        x - 42, y,
-        84, 85,
-        (Color){67, 88, 59, 255});
+        DrawEllipse((int)x, (int)y, 4, 8, (Color){177, 211, 104, 220});
+    }
 
-    DrawCircle(x - 12, y - 30, 5, GOLD);
-    DrawCircle(x + 12, y - 30, 5, GOLD);
-
-    DrawTriangle(
-        (Vector2){x - 20, y - 50},
-        (Vector2){x - 38, y - 78},
-        (Vector2){x - 5, y - 60},
-        (Color){190, 185, 150, 255});
-
-    DrawTriangle(
-        (Vector2){x + 20, y - 50},
-        (Vector2){x + 38, y - 78},
-        (Vector2){x + 5, y - 60},
-        (Color){190, 185, 150, 255});
-}
-
-static void desenharMonstroHel(int x, int y)
-{
-    Color armadura = (Color){56, 67, 91, 255};
-
-    DrawCircle(x, y, 29, armadura);
-
-    DrawRectangle(
-        x - 32, y + 20,
-        64, 65,
-        armadura);
-
-    DrawTriangle(
-        (Vector2){x - 20, y - 18},
-        (Vector2){x - 42, y - 65},
-        (Vector2){x - 5, y - 38},
-        armadura);
-
-    DrawTriangle(
-        (Vector2){x + 20, y - 18},
-        (Vector2){x + 42, y - 65},
-        (Vector2){x + 5, y - 38},
-        armadura);
-
-    DrawCircle(x - 10, y, 5, SKYBLUE);
-    DrawCircle(x + 10, y, 5, SKYBLUE);
+    DrawRectangleGradientV(
+        0, 0,
+        LARGURA_TELA, 190,
+        (Color){8, 28, 35, 95},
+        (Color){8, 28, 35, 0});
 }
 
 static void desenharHeroi(
@@ -340,265 +373,483 @@ static void desenharHeroi(
     Color detalhe,
     int tipoArma)
 {
-    DrawRectangle(
-        x - 19, y + 65,
-        15, 42,
-        (Color){35, 39, 40, 255});
+    float tempo = (float)GetTime();
+    float movimento = sinf(tempo * 2.0f + x) * 2.0f;
 
-    DrawRectangle(
-        x + 4, y + 65,
-        15, 42,
-        (Color){35, 39, 40, 255});
+    y += (int)movimento;
 
-    DrawRectangle(
-        x - 24, y + 99,
-        24, 12,
-        (Color){30, 25, 22, 255});
-
-    DrawRectangle(
-        x + 2, y + 99,
-        24, 12,
-        (Color){30, 25, 22, 255});
+    DrawEllipse(x, y + 112, 39, 9, (Color){15, 36, 27, 90});
 
     DrawRectangleRounded(
-        (Rectangle){
-            x - 30, y + 5,
-            60, 72},
-        0.2f,
+        (Rectangle){x - 18, y + 59, 15, 45},
+        0.25f,
         5,
+        (Color){46, 49, 46, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x + 3, y + 59, 15, 45},
+        0.25f,
+        5,
+        (Color){46, 49, 46, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x - 24, y + 96, 25, 13},
+        0.3f,
+        5,
+        (Color){56, 42, 31, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x + 1, y + 96, 25, 13},
+        0.3f,
+        5,
+        (Color){56, 42, 31, 255});
+
+    DrawTriangle(
+        (Vector2){x - 25, y + 8},
+        (Vector2){x - 46, y + 88},
+        (Vector2){x + 3, y + 80},
+        (Color){armadura.r / 2, armadura.g / 2, armadura.b / 2, 255});
+
+    DrawTriangle(
+        (Vector2){x + 25, y + 8},
+        (Vector2){x + 46, y + 88},
+        (Vector2){x - 3, y + 80},
+        (Color){armadura.r / 2, armadura.g / 2, armadura.b / 2, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x - 29, y + 3, 58, 68},
+        0.2f,
+        6,
         armadura);
 
     DrawRectangle(
-        x - 9, y + 9,
-        18, 65,
+        x - 7,
+        y + 7,
+        14,
+        59,
         detalhe);
 
-    DrawCircle(
-        x - 29, y + 17,
-        13,
-        detalhe);
+    DrawRectangleRounded(
+        (Rectangle){x - 29, y + 35, 58, 9},
+        0.3f,
+        5,
+        (Color){126, 91, 49, 255});
 
-    DrawCircle(
-        x + 29, y + 17,
-        13,
-        detalhe);
+    DrawCircle(x, y + 39, 6, COR_DOURADO);
 
-    DrawRectangle(
-        x - 9, y - 8,
-        18, 20,
-        COR_PELE);
+    DrawCircle(x - 29, y + 16, 12, detalhe);
+    DrawCircle(x + 29, y + 16, 12, detalhe);
 
-    DrawCircle(
-        x, y - 25,
-        24,
-        COR_PELE);
+    DrawRectangle(x - 9, y - 12, 18, 23, COR_PELE);
+    DrawCircle(x, y - 27, 23, COR_PELE);
 
-    DrawCircle(
-        x, y - 38,
-        23,
-        (Color){48, 35, 27, 255});
+    DrawCircle(x, y - 41, 23, (Color){72, 48, 34, 255});
+    DrawRectangle(x - 23, y - 40, 46, 15, (Color){72, 48, 34, 255});
 
-    DrawRectangle(
-        x - 22, y - 29,
-        44, 15,
-        COR_PELE);
+    DrawCircle(x - 8, y - 27, 3, BLACK);
+    DrawCircle(x + 8, y - 27, 3, BLACK);
 
-    DrawCircle(
-        x - 8, y - 26,
+    DrawLineEx(
+        (Vector2){x - 6, y - 17},
+        (Vector2){x + 6, y - 17},
         2,
-        BLACK);
-
-    DrawCircle(
-        x + 8, y - 26,
-        2,
-        BLACK);
+        (Color){119, 58, 47, 255});
 
     if (tipoArma == 0)
     {
         DrawLineEx(
-            (Vector2){x + 36, y + 12},
+            (Vector2){x + 37, y + 15},
             (Vector2){x + 65, y - 48},
-            6,
-            LIGHTGRAY);
+            7,
+            (Color){106, 75, 43, 255});
 
         DrawLineEx(
-            (Vector2){x + 27, y + 18},
-            (Vector2){x + 45, y + 25},
-            7,
-            BROWN);
+            (Vector2){x + 65, y - 48},
+            (Vector2){x + 80, y - 65},
+            5,
+            (Color){220, 229, 224, 255});
+
+        DrawLineEx(
+            (Vector2){x + 27, y + 17},
+            (Vector2){x + 47, y + 24},
+            8,
+            (Color){130, 91, 48, 255});
     }
     else if (tipoArma == 1)
     {
         DrawLineEx(
-            (Vector2){x - 42, y + 15},
+            (Vector2){x - 43, y + 15},
             (Vector2){x - 68, y - 55},
             7,
-            BROWN);
+            (Color){119, 79, 42, 255});
 
         DrawTriangle(
             (Vector2){x - 68, y - 55},
-            (Vector2){x - 92, y - 65},
-            (Vector2){x - 76, y - 30},
-            LIGHTGRAY);
+            (Vector2){x - 91, y - 67},
+            (Vector2){x - 76, y - 29},
+            (Color){222, 229, 220, 255});
+
+        DrawLineEx(
+            (Vector2){x - 68, y - 55},
+            (Vector2){x - 76, y - 29},
+            2,
+            WHITE);
     }
     else if (tipoArma == 2)
     {
         DrawLineEx(
             (Vector2){x + 38, y + 75},
             (Vector2){x + 38, y - 65},
-            7,
-            BROWN);
+            8,
+            (Color){105, 76, 45, 255});
 
-        DrawCircle(
-            x + 38, y - 69,
-            12,
-            SKYBLUE);
-
-        DrawCircle(
-            x + 38, y - 69,
-            5,
-            WHITE);
+        DrawCircle(x + 38, y - 69, 15, (Color){75, 166, 213, 255});
+        DrawCircle(x + 38, y - 69, 8, (Color){183, 239, 255, 255});
+        DrawCircle(x + 38, y - 69, 3, WHITE);
     }
     else
     {
         DrawLineEx(
             (Vector2){x - 40, y - 45},
             (Vector2){x - 58, y + 40},
-            5,
-            BROWN);
+            7,
+            (Color){119, 79, 42, 255});
 
         DrawLineEx(
             (Vector2){x - 58, y + 40},
             (Vector2){x - 40, y + 105},
-            5,
-            BROWN);
+            7,
+            (Color){119, 79, 42, 255});
 
         DrawLineEx(
             (Vector2){x - 40, y - 45},
             (Vector2){x - 40, y + 105},
             2,
-            LIGHTGRAY);
+            (Color){221, 226, 215, 255});
     }
 }
 
-static void desenharCenarioMenu(void)
+static void desenharMonstroDraugr(int x, int y)
 {
-    float tempo = (float)GetTime();
+    Color pele = (Color){105, 143, 100, 255};
+    Color roupa = (Color){54, 77, 62, 255};
 
-    ClearBackground(COR_FUNDO);
+    DrawEllipse(x, y + 45, 35, 8, (Color){15, 35, 25, 100});
 
-    DrawRectangleGradientV(
-        0, 0,
-        LARGURA_TELA, ALTURA_TELA,
-        (Color){17, 37, 45, 255},
-        (Color){9, 20, 24, 255});
+    DrawRectangleRounded(
+        (Rectangle){x - 25, y + 10, 50, 62},
+        0.2f,
+        5,
+        roupa);
 
-    DrawCircle(
-        1040, 115,
-        48,
-        (Color){180, 190, 172, 255});
+    DrawCircle(x, y - 12, 27, pele);
+    DrawCircle(x - 9, y - 15, 5, (Color){255, 79, 65, 255});
+    DrawCircle(x + 9, y - 15, 5, (Color){255, 79, 65, 255});
 
-    DrawCircle(
-        1058, 100,
-        45,
-        (Color){17, 37, 45, 255});
+    DrawRectangle(x - 13, y - 2, 26, 5, (Color){44, 48, 39, 255});
 
-    desenharMontanhas();
-    desenharYggdrasil();
+    DrawRectangleRounded(
+        (Rectangle){x - 35, y + 17, 12, 39},
+        0.3f,
+        5,
+        (Color){78, 92, 68, 255});
 
-    DrawRectangle(
-        0, 390,
-        LARGURA_TELA, 330,
-        (Color){20, 48, 37, 255});
+    DrawRectangleRounded(
+        (Rectangle){x + 23, y + 17, 12, 39},
+        0.3f,
+        5,
+        (Color){78, 92, 68, 255});
 
-    desenharArvore(70, 430, 1.2f);
-    desenharArvore(190, 450, 0.9f);
-    desenharArvore(1090, 435, 1.2f);
-    desenharArvore(1200, 450, 0.9f);
+    DrawLineEx(
+        (Vector2){x + 36, y + 30},
+        (Vector2){x + 58, y - 25},
+        5,
+        (Color){112, 80, 49, 255});
 
-    desenharMonstroDraugr(315, 360);
-    desenharMonstroFenrir(470, 365);
-    desenharMonstroTroll(800, 350);
-    desenharMonstroHel(960, 355);
+    DrawLineEx(
+        (Vector2){x + 58, y - 25},
+        (Vector2){x + 68, y - 39},
+        4,
+        LIGHTGRAY);
+}
 
+static void desenharMonstroFenrir(int x, int y)
+{
+    Color pelo = (Color){83, 91, 89, 255};
+    Color sombra = (Color){47, 58, 58, 255};
+
+    DrawEllipse(x, y + 35, 49, 12, (Color){15, 35, 25, 100});
+
+    DrawEllipse(x, y + 5, 47, 27, pelo);
+    DrawCircle(x + 28, y - 13, 28, pelo);
+
+    DrawTriangle(
+        (Vector2){x + 10, y - 30},
+        (Vector2){x + 5, y - 68},
+        (Vector2){x + 35, y - 38},
+        pelo);
+
+    DrawTriangle(
+        (Vector2){x + 43, y - 30},
+        (Vector2){x + 62, y - 63},
+        (Vector2){x + 61, y - 23},
+        pelo);
+
+    DrawEllipse(x + 50, y - 2, 24, 13, sombra);
+
+    DrawCircle(x + 22, y - 17, 5, (Color){255, 221, 94, 255});
+    DrawCircle(x + 43, y - 17, 5, (Color){255, 221, 94, 255});
+
+    DrawCircle(x + 22, y - 17, 2, BLACK);
+    DrawCircle(x + 43, y - 17, 2, BLACK);
+
+    DrawTriangle(
+        (Vector2){x + 68, y - 4},
+        (Vector2){x + 55, y - 10},
+        (Vector2){x + 56, y + 5},
+        (Color){35, 39, 39, 255});
+
+    DrawLineEx(
+        (Vector2){x - 25, y + 10},
+        (Vector2){x - 43, y + 45},
+        10,
+        pelo);
+
+    DrawLineEx(
+        (Vector2){x + 5, y + 15},
+        (Vector2){x - 1, y + 46},
+        10,
+        pelo);
+
+    DrawLineEx(
+        (Vector2){x + 27, y + 14},
+        (Vector2){x + 34, y + 45},
+        10,
+        pelo);
+}
+
+static void desenharMonstroTroll(int x, int y)
+{
+    Color pele = (Color){113, 139, 91, 255};
+    Color sombra = (Color){75, 103, 72, 255};
+
+    DrawEllipse(x, y + 65, 55, 13, (Color){15, 35, 25, 100});
+
+    DrawRectangleRounded(
+        (Rectangle){x - 44, y - 5, 88, 78},
+        0.3f,
+        7,
+        sombra);
+
+    DrawCircle(x, y - 24, 40, pele);
+
+    DrawTriangle(
+        (Vector2){x - 23, y - 48},
+        (Vector2){x - 50, y - 83},
+        (Vector2){x - 5, y - 59},
+        (Color){184, 183, 143, 255});
+
+    DrawTriangle(
+        (Vector2){x + 23, y - 48},
+        (Vector2){x + 50, y - 83},
+        (Vector2){x + 5, y - 59},
+        (Color){184, 183, 143, 255});
+
+    DrawCircle(x - 14, y - 30, 6, (Color){255, 220, 93, 255});
+    DrawCircle(x + 14, y - 30, 6, (Color){255, 220, 93, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x - 17, y - 7, 34, 13},
+        0.3f,
+        4,
+        (Color){65, 70, 54, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x - 62, y + 9, 20, 47},
+        0.4f,
+        5,
+        pele);
+
+    DrawRectangleRounded(
+        (Rectangle){x + 42, y + 9, 20, 47},
+        0.4f,
+        5,
+        pele);
+
+    DrawCircle(x - 52, y + 57, 12, pele);
+    DrawCircle(x + 52, y + 57, 12, pele);
+
+    DrawCircle(x - 28, y + 5, 9, (Color){150, 163, 113, 255});
+    DrawCircle(x + 26, y + 28, 10, (Color){150, 163, 113, 255});
+}
+
+static void desenharMonstroHel(int x, int y)
+{
+    Color armadura = (Color){68, 79, 105, 255};
+    Color energia = (Color){121, 204, 232, 255};
+
+    DrawEllipse(x, y + 49, 38, 10, (Color){15, 35, 25, 100});
+
+    DrawRectangleRounded(
+        (Rectangle){x - 30, y + 8, 60, 66},
+        0.2f,
+        6,
+        armadura);
+
+    DrawCircle(x, y - 15, 29, armadura);
+
+    DrawTriangle(
+        (Vector2){x - 20, y - 31},
+        (Vector2){x - 43, y - 77},
+        (Vector2){x - 5, y - 44},
+        armadura);
+
+    DrawTriangle(
+        (Vector2){x + 20, y - 31},
+        (Vector2){x + 43, y - 77},
+        (Vector2){x + 5, y - 44},
+        armadura);
+
+    DrawCircle(x - 10, y - 17, 5, energia);
+    DrawCircle(x + 10, y - 17, 5, energia);
+
+    DrawRectangle(x - 12, y + 2, 24, 6, (Color){35, 48, 66, 255});
+
+    DrawLineEx(
+        (Vector2){x + 35, y + 20},
+        (Vector2){x + 50, y - 44},
+        5,
+        (Color){111, 93, 72, 255});
+
+    DrawTriangle(
+        (Vector2){x + 50, y - 44},
+        (Vector2){x + 42, y - 63},
+        (Vector2){x + 60, y - 58},
+        energia);
+}
+
+static void desenharHeroisMenu(void)
+{
     desenharHeroi(
-        410, 405,
-        (Color){83, 99, 107, 255},
-        (Color){164, 130, 78, 255},
+        390, 420,
+        (Color){87, 112, 119, 255},
+        (Color){191, 153, 88, 255},
         0);
 
     desenharHeroi(
-        545, 405,
-        (Color){86, 93, 64, 255},
-        (Color){170, 150, 93, 255},
+        520, 420,
+        (Color){92, 108, 73, 255},
+        (Color){191, 169, 105, 255},
         1);
 
     desenharHeroi(
-        680, 405,
-        (Color){54, 75, 107, 255},
-        (Color){110, 169, 190, 255},
+        650, 420,
+        (Color){65, 91, 132, 255},
+        (Color){125, 190, 224, 255},
         2);
 
     desenharHeroi(
-        815, 405,
-        (Color){92, 62, 57, 255},
-        (Color){183, 135, 77, 255},
+        780, 420,
+        (Color){107, 75, 67, 255},
+        (Color){207, 153, 89, 255},
         3);
+}
 
-    for (int i = 0; i < 18; i++)
+static void desenharCriaturasMenu(void)
+{
+    desenharMonstroDraugr(280, 400);
+    desenharMonstroFenrir(930, 400);
+    desenharMonstroTroll(1080, 370);
+    desenharMonstroHel(170, 390);
+}
+
+static void desenharMenuInicialDecoracao(void)
+{
+    float tempo = (float)GetTime();
+
+    desenharCenarioMenu();
+    desenharCriaturasMenu();
+    desenharHeroisMenu();
+
+    for (int i = 0; i < 24; i++)
     {
-        float x = (float)((i * 97) % LARGURA_TELA);
-        float y = 170.0f +
-                  (float)((i * 53) % 360) +
-                  sinf(tempo * 1.5f + i) * 5.0f;
+        float x = (float)((i * 89) % LARGURA_TELA);
+        float y = 190.0f + (float)((i * 47) % 390);
+        float deslocamento = sinf(tempo * 1.7f + i) * 8.0f;
 
         DrawCircle(
-            (int)x,
+            (int)(x + deslocamento),
             (int)y,
-            2,
-            (Color){205, 176, 104, 150});
+            2 + (i % 2),
+            (Color){255, 231, 143, 190});
     }
+
+    DrawRectangleGradientV(
+        0, 0,
+        LARGURA_TELA, 175,
+        (Color){9, 26, 34, 170},
+        (Color){9, 26, 34, 0});
 
     DrawRectangleGradientV(
         0, 490,
         LARGURA_TELA, 230,
-        (Color){0, 0, 0, 0},
-        (Color){0, 0, 0, 190});
+        (Color){8, 25, 24, 0},
+        (Color){7, 20, 21, 220});
 }
 
 static int desenharMenuInicial(void)
 {
-    Rectangle botaoJogar = {
-        475, 550, 330, 55};
+    Rectangle botaoJogar = {475, 550, 330, 55};
+    Rectangle botaoInstrucoes = {500, 615, 280, 43};
+    Rectangle botaoSair = {500, 665, 280, 40};
 
-    Rectangle botaoInstrucoes = {
-        500, 615, 280, 43};
+    desenharMenuInicialDecoracao();
 
-    Rectangle botaoSair = {
-        500, 665, 280, 40};
-
-    desenharCenarioMenu();
+    DrawRectangleGradientV(
+        0, 0,
+        LARGURA_TELA, 175,
+        (Color){8, 24, 31, 185},
+        (Color){8, 24, 31, 0});
 
     desenharTextoCentralizado(
         "RAGNAROK",
         fonteTitulo,
-        58,
-        25,
-        GOLD);
+        76,
+        9,
+        (Color){255, 225, 137, 255});
+
+    Vector2 titulo = MeasureTextEx(fonteTitulo, "RAGNAROK", 76, 1);
+
+    DrawTextEx(
+        fonteTitulo,
+        "RAGNAROK",
+        (Vector2){(LARGURA_TELA - titulo.x) / 2.0f + 3, 12},
+        76,
+        1,
+        (Color){77, 48, 27, 170});
 
     desenharTextoCentralizado(
         "ULTIMA DEFESA",
         fonteInterface,
-        25,
-        91,
+        29,
+        87,
         RAYWHITE);
 
     desenharTextoCentralizado(
         "QUATRO HEROIS. UM ULTIMO DESTINO.",
         fonteInterface,
-        14,
-        137,
-        (Color){208, 193, 155, 255});
+        18,
+        133,
+        (Color){255, 232, 180, 255});
+
+    DrawLineEx(
+        (Vector2){420, 165},
+        (Vector2){860, 165},
+        3,
+        (Color){236, 190, 91, 210});
+
+    DrawCircle(420, 165, 5, (Color){255, 225, 137, 255});
+    DrawCircle(860, 165, 5, (Color){255, 225, 137, 255});
 
     if (desenharBotao(botaoJogar, "JOGAR", 1))
         return 1;
@@ -614,168 +865,377 @@ static int desenharMenuInicial(void)
 
 static int desenharInstrucoes(void)
 {
-    Rectangle botaoVoltar = {
-        490, 610, 300, 55};
+    Rectangle botaoVoltar = {490, 610, 300, 55};
 
     ClearBackground((Color){12, 23, 29, 255});
 
-    DrawRectangle(
+    DrawRectangleGradientV(
         0, 0,
-        LARGURA_TELA, 110,
-        (Color){18, 35, 39, 255});
+        LARGURA_TELA, ALTURA_TELA,
+        (Color){23, 43, 47, 255},
+        (Color){8, 17, 21, 255});
 
-    DrawLine(
-        0, 109,
-        LARGURA_TELA, 109,
-        GOLD);
+    DrawRectangle(0, 0, LARGURA_TELA, 110, (Color){18, 35, 39, 255});
+    DrawLine(0, 109, LARGURA_TELA, 109, GOLD);
 
     desenharTextoCentralizado(
         "COMO JOGAR",
         fonteTitulo,
-        42,
-        30,
+        48,
+        25,
         GOLD);
+
+    desenharPainel(
+        (Rectangle){140, 145, 1000, 420},
+        (Color){13, 25, 29, 235});
 
     desenharTextoCentralizado(
         "Defenda Yggdrasil das criaturas de Ragnarok!",
         fonteInterface,
-        22,
-        155,
+        27,
+        170,
         RAYWHITE);
 
-    DrawText(
-        "CONTROLES",
-        180, 235,
-        25, GOLD);
+    desenharTextoTitulo("CONTROLES", 190, 235, 30, GOLD);
+    desenharTextoUI("ESPACO", 205, 285, 25, SKYBLUE);
+    desenharTextoUI("Iniciar a proxima onda", 335, 285, 25, RAYWHITE);
+    desenharTextoUI("ESC", 205, 330, 25, SKYBLUE);
+    desenharTextoUI("Voltar ao menu", 335, 330, 25, RAYWHITE);
 
-    DrawText(
-        "ESPACO - Iniciar a proxima onda",
-        200, 285,
-        21, RAYWHITE);
+    DrawLine(190, 380, 1090, 380, (Color){117, 91, 53, 150});
 
-    DrawText(
-        "ESC - Voltar ao menu",
-        200, 330,
-        21, RAYWHITE);
-
-    DrawText(
-        "OBJETIVO",
-        180, 405,
-        25, GOLD);
-
-    DrawText(
-        "Impeca que os inimigos alcancem Yggdrasil.",
-        200, 455,
-        21, RAYWHITE);
-
-    DrawText(
-        "Sobreviva as 10 ondas para vencer.",
-        200, 495,
-        21, RAYWHITE);
-
-    DrawText(
-        "Na onda 9, os inimigos estarao corrompidos.",
-        200, 535,
-        21, SKYBLUE);
+    desenharTextoTitulo("OBJETIVO", 190, 400, 30, GOLD);
+    desenharTextoUI("Impeca que os inimigos alcancem Yggdrasil.", 205, 450, 23, RAYWHITE);
+    desenharTextoUI("Sobreviva as 10 ondas para vencer.", 205, 490, 23, RAYWHITE);
+    desenharTextoUI("Na onda 9, os inimigos estarao corrompidos.", 205, 530, 23, COR_ROXO);
 
     return desenharBotao(botaoVoltar, "VOLTAR", 1);
 }
 
+static void desenharBarraIndicadora(float x, float y, float largura, float altura, float valor, Color cor)
+{
+    if (valor < 0.0f)
+        valor = 0.0f;
+
+    if (valor > 1.0f)
+        valor = 1.0f;
+
+    DrawRectangleRounded(
+        (Rectangle){x, y, largura, altura},
+        0.5f,
+        6,
+        (Color){35, 40, 39, 255});
+
+    DrawRectangleRounded(
+        (Rectangle){x, y, largura * valor, altura},
+        0.5f,
+        6,
+        cor);
+}
+
 static void desenharHUD(Jogo *jogo)
 {
-    DrawRectangle(
+    float porcentagemVida = jogo->vidaBase / 100.0f;
+    float tempo = (float)GetTime();
+
+    DrawRectangleGradientV(
         0, 0,
         LARGURA_TELA, 105,
-        (Color){16, 25, 24, 250});
+        (Color){12, 23, 26, 255},
+        (Color){22, 35, 35, 250});
 
-    DrawLine(
-        0, 104,
-        LARGURA_TELA, 104,
-        (Color){126, 100, 57, 255});
+    DrawRectangle(0, 101, LARGURA_TELA, 4, (Color){112, 83, 45, 255});
 
-    DrawTextEx(
-        fonteTitulo,
-        "RAGNAROK",
-        (Vector2){35, 12},
-        30, 1, GOLD);
+    desenharTextoTitulo("RAGNAROK", 28, 7, 34, GOLD);
+    desenharTextoUI("ULTIMA DEFESA", 34, 49, 18, COR_TEXTO);
 
-    DrawTextEx(
-        fonteInterface,
-        "ULTIMA DEFESA",
-        (Vector2){39, 53},
-        16, 1, RAYWHITE);
+    DrawLineEx((Vector2){280, 19}, (Vector2){280, 83}, 1, (Color){135, 112, 75, 130});
 
-    DrawTextEx(
-        fonteInterface,
-        "MOEDAS",
-        (Vector2){416, 19},
-        14, 1, LIGHTGRAY);
+    desenharTextoUI("MOEDAS", 320, 13, 17, (Color){182, 182, 168, 255});
 
-    DrawTextEx(
-        fonteTitulo,
-        TextFormat("%d", jogo->moedas),
-        (Vector2){416, 39},
-        23, 1, GOLD);
+    DrawCircle(329, 58, 12, (Color){120, 85, 34, 255});
+    DrawCircle(329, 58, 8, GOLD);
+    DrawCircle(326, 55, 2, (Color){255, 232, 165, 255});
 
-    DrawTextEx(
-        fonteInterface,
-        "YGGDRASIL",
-        (Vector2){611, 19},
-        14, 1, LIGHTGRAY);
+    desenharTextoTitulo(TextFormat("%d", jogo->moedas), 348, 34, 29, GOLD);
 
-    DrawTextEx(
-        fonteTitulo,
+    DrawLineEx((Vector2){510, 19}, (Vector2){510, 83}, 1, (Color){135, 112, 75, 130});
+
+    desenharTextoUI("YGGDRASIL", 550, 13, 17, (Color){182, 182, 168, 255});
+
+    desenharTextoTitulo(
         TextFormat("%d / 100", jogo->vidaBase),
-        (Vector2){611, 39},
-        22, 1,
-        (Color){130, 205, 139, 255});
+        550, 34, 27,
+        (Color){150, 218, 151, 255});
 
-    DrawTextEx(
-        fonteInterface,
-        "ONDA",
-        (Vector2){836, 19},
-        14, 1, LIGHTGRAY);
+    desenharBarraIndicadora(
+        550, 75, 155, 7,
+        porcentagemVida,
+        porcentagemVida > 0.3f
+            ? (Color){91, 180, 111, 255}
+            : (Color){210, 65, 62, 255});
 
-    DrawTextEx(
-        fonteTitulo,
-        TextFormat("%d / 10", jogo->onda),
-        (Vector2){836, 39},
-        22, 1, SKYBLUE);
+    DrawLineEx((Vector2){750, 19}, (Vector2){750, 83}, 1, (Color){135, 112, 75, 130});
 
-    DrawTextEx(
-        fonteInterface,
-        "A DEFESA DE YGGDRASIL",
-        (Vector2){1020, 27},
-        15, 1,
-        (Color){190, 177, 135, 255});
+    desenharTextoUI("ONDA ATUAL", 790, 13, 17, (Color){182, 182, 168, 255});
 
-    DrawTextEx(
-        fonteInterface,
-        "Prepare suas defesas",
-        (Vector2){1020, 52},
-        13, 1, LIGHTGRAY);
+    desenharTextoTitulo(
+        TextFormat("%02d / 10", jogo->onda),
+        790, 34, 29,
+        SKYBLUE);
+
+    DrawLineEx((Vector2){965, 19}, (Vector2){965, 83}, 1, (Color){135, 112, 75, 130});
+
+    desenharTextoUI("A DEFESA DE YGGDRASIL", 1000, 22, 18, (Color){210, 190, 145, 255});
+    desenharTextoUI("Prepare suas defesas", 1000, 51, 16, LIGHTGRAY);
+
+    DrawCircleLines(
+        1230,
+        51,
+        18 + sinf(tempo * 2.0f) * 1.5f,
+        (Color){190, 151, 78, 130});
+
+    DrawCircle(1230, 51, 5, GOLD);
 }
 
 static void desenharMensagem(const char *mensagem)
 {
-    int largura = MeasureText(mensagem, 20);
+    Vector2 dimensoes = MeasureTextEx(fonteInterface, mensagem, 25, 1);
+    float largura = dimensoes.x;
 
     DrawRectangleRounded(
         (Rectangle){
             LARGURA_TELA / 2.0f - largura / 2.0f - 25,
-            640,
+            635,
             largura + 50,
-            42},
+            48},
         0.3f,
         8,
         (Color){16, 25, 24, 230});
 
-    DrawText(
+    desenharTextoUI(
         mensagem,
-        LARGURA_TELA / 2 - largura / 2,
-        651,
-        20,
+        LARGURA_TELA / 2.0f - largura / 2.0f,
+        644,
+        25,
         RAYWHITE);
+}
+
+static void desenharIconeTorre(TipoTorre tipo, float x, float y, Color cor)
+{
+    if (tipo == TORRE_ARQUEIRO)
+    {
+        DrawRectangleRounded(
+            (Rectangle){x - 12, y - 7, 24, 19},
+            0.12f,
+            4,
+            (Color){88, 61, 37, 255});
+
+        DrawRectangle((int)x - 8, (int)y - 14, 16, 9, (Color){124, 89, 48, 255});
+
+        DrawLineEx((Vector2){x - 14, y - 17}, (Vector2){x + 14, y + 15}, 2, cor);
+        DrawLineEx((Vector2){x + 14, y - 17}, (Vector2){x - 14, y + 15}, 2, cor);
+    }
+    else if (tipo == TORRE_GELO)
+    {
+        DrawPoly((Vector2){x, y}, 6, 16, 0, (Color){55, 145, 190, 255});
+        DrawPoly((Vector2){x, y}, 6, 10, 0, (Color){155, 225, 255, 255});
+        DrawCircle((int)x, (int)y, 4, WHITE);
+    }
+    else
+    {
+        DrawPoly((Vector2){x, y}, 6, 16, 0, (Color){73, 42, 112, 255});
+        DrawPoly((Vector2){x, y}, 6, 10, 0, COR_ROXO);
+
+        DrawLineEx((Vector2){x - 2, y - 12}, (Vector2){x + 5, y - 2}, 3, (Color){230, 190, 255, 255});
+        DrawLineEx((Vector2){x + 5, y - 2}, (Vector2){x - 4, y + 2}, 3, (Color){230, 190, 255, 255});
+        DrawLineEx((Vector2){x - 4, y + 2}, (Vector2){x + 2, y + 12}, 3, (Color){230, 190, 255, 255});
+    }
+}
+
+static void desenharCartaoTorre(Rectangle area, TipoTorre tipo, const char *nome, const char *preco, Color cor, int selecionada)
+{
+    Color fundo = selecionada
+                      ? (Color){57, 49, 34, 255}
+                      : (Color){22, 34, 35, 255};
+
+    DrawRectangleRounded(area, 0.13f, 8, fundo);
+
+    DrawRectangleRoundedLinesEx(
+        area,
+        0.13f,
+        8,
+        selecionada ? 3 : 1.5f,
+        selecionada ? GOLD : COR_BORDA);
+
+    if (selecionada)
+    {
+        DrawRectangleRounded(
+            (Rectangle){area.x + 4, area.y + 4, 5, area.height - 8},
+            0.5f,
+            4,
+            cor);
+    }
+
+    desenharIconeTorre(tipo, area.x + 30, area.y + 34, cor);
+
+    desenharTextoUI(nome, area.x + 55, area.y + 10, 17, RAYWHITE);
+    desenharTextoUI(preco, area.x + 55, area.y + 37, 15, (Color){220, 190, 125, 255});
+
+    DrawCircle(
+        (int)(area.x + area.width - 17),
+        (int)(area.y + 17),
+        4,
+        selecionada ? GOLD : (Color){90, 100, 94, 255});
+}
+
+static void desenharPainelTorre(Torre torres[], int indice)
+{
+    if (indice < 0 || indice >= MAX_TORRES || !torres[indice].ativo)
+        return;
+
+    Torre torre = torres[indice];
+    int valorVenda = torre.valorInvestido / 2;
+
+    const char *nome;
+    Color cor;
+
+    switch (torre.tipo)
+    {
+    case TORRE_ARQUEIRO:
+        nome = "TORRE ARQUEIRO";
+        cor = (Color){194, 151, 78, 255};
+        break;
+
+    case TORRE_GELO:
+        nome = "TORRE DE GELO";
+        cor = (Color){105, 194, 235, 255};
+        break;
+
+    case TORRE_TROVAO:
+        nome = "TORRE DO TROVAO";
+        cor = COR_ROXO;
+        break;
+
+    default:
+        nome = "TORRE";
+        cor = GOLD;
+        break;
+    }
+
+    desenharPainel((Rectangle){510, 627, 750, 84}, (Color){13, 23, 26, 250});
+
+    desenharTextoUI(nome, 530, 634, 19, cor);
+    desenharTextoUI(TextFormat("NIVEL %d / 3", torre.nivel), 530, 662, 16, RAYWHITE);
+    desenharTextoUI(TextFormat("DANO  %d", torre.dano), 700, 636, 17, RAYWHITE);
+    desenharTextoUI(TextFormat("ALCANCE  %.0f", torre.alcance), 700, 663, 15, (Color){190, 205, 205, 255});
+    desenharTextoUI(TextFormat("VENDA  %d", valorVenda), 865, 636, 17, GOLD);
+    desenharTextoUI("50% DO INVESTIMENTO", 865, 665, 12, LIGHTGRAY);
+
+    Rectangle botaoUpgrade = {1015, 635, 110, 65};
+    Rectangle botaoVenda = {1135, 635, 115, 65};
+
+    Color fundoUpgrade = torre.nivel >= 3
+                             ? (Color){45, 48, 45, 255}
+                             : (Color){47, 83, 62, 255};
+
+    DrawRectangleRounded(botaoUpgrade, 0.16f, 8, fundoUpgrade);
+    DrawRectangleRoundedLinesEx(botaoUpgrade, 0.16f, 8, 2, torre.nivel >= 3 ? DARKGRAY : (Color){155, 193, 123, 255});
+
+    DrawRectangleRounded(botaoVenda, 0.16f, 8, (Color){85, 38, 38, 255});
+    DrawRectangleRoundedLinesEx(botaoVenda, 0.16f, 8, 2, (Color){180, 91, 72, 255});
+
+    if (torre.nivel >= 3)
+    {
+        desenharTextoUI("NIVEL MAX", 1020, 657, 15, LIGHTGRAY);
+    }
+    else
+    {
+        desenharTextoUI("MELHORAR", 1020, 641, 15, WHITE);
+        desenharTextoUI(TextFormat("%d moedas", torre.custo * torre.nivel), 1020, 671, 12, (Color){225, 205, 150, 255});
+    }
+
+    desenharTextoUI("VENDER", 1150, 642, 17, WHITE);
+    desenharTextoUI(TextFormat("+%d moedas", valorVenda), 1145, 671, 13, (Color){239, 183, 132, 255});
+}
+
+static void desenharPainelConstrucoes(TipoTorre tipoTorreSelecionada)
+{
+    DrawRectangleGradientV(
+        0, 620,
+        LARGURA_TELA, 100,
+        (Color){21, 32, 32, 255},
+        (Color){10, 19, 22, 255});
+
+    DrawRectangle(0, 620, LARGURA_TELA, 2, COR_BORDA);
+
+    desenharTextoUI("CONSTRUIR", 22, 622, 14, (Color){174, 155, 116, 255});
+
+    desenharCartaoTorre(
+        (Rectangle){20, 640, 150, 65},
+        TORRE_ARQUEIRO,
+        "ARQUEIRO",
+        "50 moedas",
+        (Color){194, 151, 78, 255},
+        tipoTorreSelecionada == TORRE_ARQUEIRO);
+
+    desenharCartaoTorre(
+        (Rectangle){180, 640, 150, 65},
+        TORRE_GELO,
+        "GELO",
+        "65 moedas",
+        (Color){105, 194, 235, 255},
+        tipoTorreSelecionada == TORRE_GELO);
+
+    desenharCartaoTorre(
+        (Rectangle){340, 640, 150, 65},
+        TORRE_TROVAO,
+        "TROVAO",
+        "90 moedas",
+        COR_ROXO,
+        tipoTorreSelecionada == TORRE_TROVAO);
+}
+
+static void desenharPainelOnda(int ondaIniciada, int inimigosCriados, int totalInimigosOnda)
+{
+    if (!ondaIniciada)
+    {
+        desenharTextoUI(
+            "PRESSIONE ESPACO PARA INICIAR A ONDA",
+            650, 653, 17,
+            (Color){213, 194, 148, 255});
+    }
+    else
+    {
+        desenharTextoUI("INIMIGOS", 650, 638, 14, LIGHTGRAY);
+
+        desenharTextoTitulo(
+            TextFormat("%d / %d", inimigosCriados, totalInimigosOnda),
+            650, 658, 24,
+            SKYBLUE);
+    }
+}
+
+static void desenharTelaFinal(int vitoria, int derrota)
+{
+    DrawRectangle(0, 0, LARGURA_TELA, ALTURA_TELA, (Color){0, 0, 0, 190});
+
+    desenharPainel(
+        (Rectangle){300, 210, 680, 300},
+        (Color){13, 23, 27, 250});
+
+    if (vitoria)
+    {
+        desenharTextoCentralizado("VITORIA!", fonteTitulo, 75, 270, GOLD);
+        desenharTextoCentralizado("Yggdrasil foi salvo!", fonteInterface, 30, 370, RAYWHITE);
+        desenharTextoCentralizado("As dez ondas foram superadas.", fonteInterface, 21, 420, (Color){190, 205, 185, 255});
+    }
+    else if (derrota)
+    {
+        desenharTextoCentralizado("DERROTA", fonteTitulo, 75, 270, (Color){210, 75, 70, 255});
+        desenharTextoCentralizado("Yggdrasil foi destruido!", fonteInterface, 30, 370, RAYWHITE);
+        desenharTextoCentralizado("Ragnarok consumiu os nove mundos.", fonteInterface, 21, 420, (Color){190, 175, 175, 255});
+    }
 }
 
 static void desenharPartida(
@@ -787,126 +1247,28 @@ static void desenharPartida(
     int totalInimigosOnda,
     int vitoria,
     int derrota,
-    TipoTorre tipoTorreSelecionada)
+    TipoTorre tipoTorreSelecionada,
+    int torreSelecionada)
 {
     desenharCenarioCompleto();
-
     desenharHUD(jogo);
 
-    desenharMapa(
-        jogo,
-        ORIGEM_X,
-        ORIGEM_Y,
-        LARGURA_CELULA,
-        ALTURA_CELULA);
+    desenharMapa(jogo, ORIGEM_X, ORIGEM_Y, LARGURA_CELULA, ALTURA_CELULA);
 
-    desenharTorres(
-        torres,
-        MAX_TORRES,
-        ORIGEM_X,
-        ORIGEM_Y,
-        LARGURA_CELULA,
-        ALTURA_CELULA);
+    desenharTorres(torres, MAX_TORRES, ORIGEM_X, ORIGEM_Y, LARGURA_CELULA, ALTURA_CELULA);
 
-    desenharInimigos(
-        inimigos,
-        MAX_INIMIGOS,
-        jogo,
-        ORIGEM_X,
-        ORIGEM_Y,
-        LARGURA_CELULA,
-        ALTURA_CELULA);
+    desenharInimigos(inimigos, MAX_INIMIGOS, jogo, ORIGEM_X, ORIGEM_Y, LARGURA_CELULA, ALTURA_CELULA);
 
-    Color corArqueiro = tipoTorreSelecionada == TORRE_ARQUEIRO
-                            ? (Color){190, 151, 78, 255}
-                            : (Color){35, 48, 42, 245};
+    desenharPainelConstrucoes(tipoTorreSelecionada);
+    desenharPainelTorre(torres, torreSelecionada);
 
-    Color corGelo = tipoTorreSelecionada == TORRE_GELO
-                        ? (Color){100, 180, 220, 255}
-                        : (Color){35, 48, 42, 245};
-
-    Color corTrovao = tipoTorreSelecionada == TORRE_TROVAO
-                          ? (Color){145, 105, 190, 255}
-                          : (Color){35, 48, 42, 245};
-
-    DrawRectangle(0, 620, LARGURA_TELA, 100, (Color){15, 25, 22, 255});
-
-    DrawRectangleRounded(
-        (Rectangle){20, 632, 150, 75},
-        0.18f, 8, corArqueiro);
-
-    DrawRectangleRounded(
-        (Rectangle){180, 632, 150, 75},
-        0.18f, 8, corGelo);
-
-    DrawRectangleRounded(
-        (Rectangle){340, 632, 150, 75},
-        0.18f, 8, corTrovao);
-
-    DrawText("ARQUEIRO", 35, 645, 19, RAYWHITE);
-    DrawText("50 moedas", 35, 672, 16, RAYWHITE);
-
-    DrawText("GELO", 195, 645, 19, RAYWHITE);
-    DrawText("65 moedas", 195, 672, 16, RAYWHITE);
-
-    DrawText("TROVAO", 355, 645, 19, RAYWHITE);
-    DrawText("90 moedas", 355, 672, 16, RAYWHITE);
-
-    if (!ondaIniciada && !vitoria && !derrota)
+    if (torreSelecionada == -1)
     {
-        DrawText("Pressione ESPACO", 650, 655, 22, GOLD);
-    }
-
-    if (ondaIniciada)
-    {
-        DrawText(
-            TextFormat("Inimigos: %d / %d",
-                       inimigosCriados,
-                       totalInimigosOnda),
-            850, 655, 20, RAYWHITE);
+        desenharPainelOnda(ondaIniciada, inimigosCriados, totalInimigosOnda);
     }
 
     if (vitoria || derrota)
-    {
-        DrawRectangle(
-            0, 0,
-            LARGURA_TELA,
-            ALTURA_TELA,
-            (Color){0, 0, 0, 180});
-
-        if (vitoria)
-        {
-            desenharTextoCentralizado(
-                "VITORIA!",
-                fonteTitulo,
-                65,
-                280,
-                GOLD);
-
-            desenharTextoCentralizado(
-                "Yggdrasil foi salvo!",
-                fonteInterface,
-                25,
-                365,
-                RAYWHITE);
-        }
-        else
-        {
-            desenharTextoCentralizado(
-                "DERROTA",
-                fonteTitulo,
-                65,
-                280,
-                RED);
-
-            desenharTextoCentralizado(
-                "Yggdrasil foi destruido!",
-                fonteInterface,
-                25,
-                365,
-                RAYWHITE);
-        }
-    }
+        desenharTelaFinal(vitoria, derrota);
 
     DrawFPS(1190, 690);
 }
@@ -916,11 +1278,14 @@ int main(void)
     Jogo jogo;
     Inimigo inimigos[MAX_INIMIGOS];
     Torre torres[MAX_TORRES];
+
     TipoTorre tipoTorreSelecionada = TORRE_ARQUEIRO;
+    int torreSelecionada = -1;
 
     EstadoTela telaAtual = MENU_INICIAL;
 
     Onda onda;
+
     int vitoria = 0;
     int derrota = 0;
 
@@ -931,34 +1296,34 @@ int main(void)
 
     inicializarMapa(&jogo);
     inicializarInimigos(inimigos, MAX_INIMIGOS);
-
     inicializarTorres(torres, MAX_TORRES);
 
-    InitWindow(
-        LARGURA_TELA,
-        ALTURA_TELA,
-        "Ragnarok: Ultima Defesa");
+    InitWindow(LARGURA_TELA, ALTURA_TELA, "Ragnarok: Ultima Defesa");
 
     SetTargetFPS(FPS);
     SetExitKey(KEY_NULL);
 
-    fonteTitulo = GetFontDefault();
-    fonteInterface = GetFontDefault();
+    fonteTitulo = LoadFontEx("C:/Windows/Fonts/georgiab.ttf", 96, NULL, 0);
+    fonteInterface = LoadFontEx("C:/Windows/Fonts/segoeuib.ttf", 64, NULL, 0);
 
-    if (FileExists("assets/fontes/Cinzel-Bold.ttf"))
+    if (fonteTitulo.texture.id != 0)
     {
-        fonteTitulo = LoadFont(
-            "assets/fontes/Cinzel-Bold.ttf");
-
         fonteTituloCarregada = 1;
+        SetTextureFilter(fonteTitulo.texture, TEXTURE_FILTER_BILINEAR);
+    }
+    else
+    {
+        fonteTitulo = GetFontDefault();
     }
 
-    if (FileExists("assets/fontes/Cinzel-SemiBold.ttf"))
+    if (fonteInterface.texture.id != 0)
     {
-        fonteInterface = LoadFont(
-            "assets/fontes/Cinzel-SemiBold.ttf");
-
         fonteInterfaceCarregada = 1;
+        SetTextureFilter(fonteInterface.texture, TEXTURE_FILTER_BILINEAR);
+    }
+    else
+    {
+        fonteInterface = GetFontDefault();
     }
 
     while (!WindowShouldClose())
@@ -995,16 +1360,12 @@ int main(void)
             EndDrawing();
 
             if (voltar || IsKeyPressed(KEY_ESCAPE))
-            {
                 telaAtual = MENU_INICIAL;
-            }
         }
         else if (telaAtual == EM_JOGO)
         {
             if (IsKeyPressed(KEY_ESCAPE))
-            {
                 telaAtual = MENU_INICIAL;
-            }
 
             if (!vitoria && !derrota &&
                 IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
@@ -1016,14 +1377,30 @@ int main(void)
                     if (mouse.x >= 20 && mouse.x <= 170)
                     {
                         tipoTorreSelecionada = TORRE_ARQUEIRO;
+                        torreSelecionada = -1;
                     }
                     else if (mouse.x >= 180 && mouse.x <= 330)
                     {
                         tipoTorreSelecionada = TORRE_GELO;
+                        torreSelecionada = -1;
                     }
                     else if (mouse.x >= 340 && mouse.x <= 490)
                     {
                         tipoTorreSelecionada = TORRE_TROVAO;
+                        torreSelecionada = -1;
+                    }
+                    else if (torreSelecionada != -1 &&
+                             mouse.x >= 1015 && mouse.x <= 1125)
+                    {
+                        melhorarTorre(torres, MAX_TORRES, &jogo, torreSelecionada);
+                    }
+                    else if (torreSelecionada != -1 &&
+                             mouse.x >= 1135 && mouse.x <= 1260)
+                    {
+                        if (venderTorre(torres, MAX_TORRES, &jogo, torreSelecionada))
+                        {
+                            torreSelecionada = -1;
+                        }
                     }
                 }
                 else if (mouse.x >= ORIGEM_X &&
@@ -1034,13 +1411,24 @@ int main(void)
                     int coluna = (int)((mouse.x - ORIGEM_X) / LARGURA_CELULA);
                     int linha = (int)((mouse.y - ORIGEM_Y) / ALTURA_CELULA);
 
-                    construirTorre(
-                        torres,
-                        MAX_TORRES,
-                        &jogo,
-                        linha,
-                        coluna,
-                        tipoTorreSelecionada);
+                    int indice = selecionarTorre(torres, MAX_TORRES, linha, coluna);
+
+                    if (indice != -1)
+                    {
+                        torreSelecionada = indice;
+                    }
+                    else
+                    {
+                        torreSelecionada = -1;
+
+                        construirTorre(
+                            torres,
+                            MAX_TORRES,
+                            &jogo,
+                            linha,
+                            coluna,
+                            tipoTorreSelecionada);
+                    }
                 }
             }
 
@@ -1052,21 +1440,12 @@ int main(void)
 
             if (!derrota && !vitoria)
             {
-                atualizarOnda(
-                    &onda,
-                    jogo.onda,
-                    inimigos,
-                    MAX_INIMIGOS,
-                    deltaTime);
+                atualizarOnda(&onda, jogo.onda, inimigos, MAX_INIMIGOS, deltaTime);
             }
 
             if (!derrota && !vitoria)
             {
-                atualizarInimigos(
-                    inimigos,
-                    MAX_INIMIGOS,
-                    &jogo,
-                    deltaTime);
+                atualizarInimigos(inimigos, MAX_INIMIGOS, &jogo, deltaTime);
             }
 
             if (!derrota && !vitoria)
@@ -1114,7 +1493,8 @@ int main(void)
                 onda.totalInimigos,
                 vitoria,
                 derrota,
-                tipoTorreSelecionada);
+                tipoTorreSelecionada,
+                torreSelecionada);
 
             EndDrawing();
         }

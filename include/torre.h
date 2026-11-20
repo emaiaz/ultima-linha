@@ -24,6 +24,8 @@ typedef struct
     float tempoRecarga;
     TipoTorre tipo;
     int ativo;
+    int nivel;
+    int valorInvestido;
 } Torre;
 
 void inicializarTorres(Torre torres[], int quantidade);
@@ -31,6 +33,12 @@ void inicializarTorres(Torre torres[], int quantidade);
 int construirTorre(Torre torres[], int quantidade,
                    Jogo *jogo, int linha, int coluna,
                    TipoTorre tipo);
+
+int selecionarTorre(const Torre torres[], int quantidade,
+                    int linha, int coluna);
+
+int venderTorre(Torre torres[], int quantidade,
+                Jogo *jogo, int indice);
 
 void atualizarTorres(Torre torres[], int quantidadeTorres,
                      Inimigo inimigos[], int quantidadeInimigos,
@@ -41,5 +49,8 @@ void atualizarTorres(Torre torres[], int quantidadeTorres,
 void desenharTorres(Torre torres[], int quantidade,
                     int posX, int posY,
                     int larguraCelula, int alturaCelula);
+
+int melhorarTorre(Torre torres[], int quantidade,
+                  Jogo *jogo, int indice);
 
 #endif
