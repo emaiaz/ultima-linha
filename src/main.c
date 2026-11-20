@@ -16,9 +16,9 @@
 #define FPS 60
 
 #define LARGURA_CELULA 64
-#define ALTURA_CELULA 60
+#define ALTURA_CELULA 52
 #define ORIGEM_X 0
-#define ORIGEM_Y 120
+#define ORIGEM_Y 100
 
 typedef enum
 {
@@ -829,42 +829,41 @@ static void desenharPartida(
                           ? (Color){145, 105, 190, 255}
                           : (Color){35, 48, 42, 245};
 
+    DrawRectangle(0, 620, LARGURA_TELA, 100, (Color){15, 25, 22, 255});
+
     DrawRectangleRounded(
-        (Rectangle){20, 625, 150, 75},
+        (Rectangle){20, 632, 150, 75},
         0.18f, 8, corArqueiro);
 
     DrawRectangleRounded(
-        (Rectangle){180, 625, 150, 75},
+        (Rectangle){180, 632, 150, 75},
         0.18f, 8, corGelo);
 
     DrawRectangleRounded(
-        (Rectangle){340, 625, 150, 75},
+        (Rectangle){340, 632, 150, 75},
         0.18f, 8, corTrovao);
 
-    DrawText("ARQUEIRO", 35, 638, 19, RAYWHITE);
-    DrawText("50 moedas", 35, 665, 16, RAYWHITE);
+    DrawText("ARQUEIRO", 35, 645, 19, RAYWHITE);
+    DrawText("50 moedas", 35, 672, 16, RAYWHITE);
 
-    DrawText("GELO", 195, 638, 19, RAYWHITE);
-    DrawText("65 moedas", 195, 665, 16, RAYWHITE);
+    DrawText("GELO", 195, 645, 19, RAYWHITE);
+    DrawText("65 moedas", 195, 672, 16, RAYWHITE);
 
-    DrawText("TROVAO", 355, 638, 19, RAYWHITE);
-    DrawText("90 moedas", 355, 665, 16, RAYWHITE);
+    DrawText("TROVAO", 355, 645, 19, RAYWHITE);
+    DrawText("90 moedas", 355, 672, 16, RAYWHITE);
 
     if (!ondaIniciada && !vitoria && !derrota)
     {
-        desenharMensagem(
-            "Pressione ESPACO para iniciar a proxima onda");
+        DrawText("Pressione ESPACO", 650, 655, 22, GOLD);
     }
 
     if (ondaIniciada)
     {
         DrawText(
-            TextFormat(
-                "Inimigos: %d / %d",
-                inimigosCriados,
-                totalInimigosOnda),
-            1040, 660,
-            18, RAYWHITE);
+            TextFormat("Inimigos: %d / %d",
+                       inimigosCriados,
+                       totalInimigosOnda),
+            850, 655, 20, RAYWHITE);
     }
 
     if (vitoria || derrota)
@@ -1012,7 +1011,7 @@ int main(void)
             {
                 Vector2 mouse = GetMousePosition();
 
-                if (mouse.y >= 625 && mouse.y <= 700)
+                if (mouse.y >= 620 && mouse.y <= 720)
                 {
                     if (mouse.x >= 20 && mouse.x <= 170)
                     {
