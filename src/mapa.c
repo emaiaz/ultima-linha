@@ -9,21 +9,21 @@
    CORES DO MAPA
    ========================================================= */
 
-#define GRAMA_BASE       ((Color){54, 91, 57, 255})
-#define GRAMA_CLARA      ((Color){72, 112, 68, 255})
-#define GRAMA_ESCURO     ((Color){42, 73, 48, 255})
+#define GRAMA_BASE ((Color){54, 91, 57, 255})
+#define GRAMA_CLARA ((Color){72, 112, 68, 255})
+#define GRAMA_ESCURO ((Color){42, 73, 48, 255})
 
-#define TERRA            ((Color){119, 86, 55, 255})
-#define TERRA_CLARA      ((Color){145, 108, 70, 255})
+#define TERRA ((Color){119, 86, 55, 255})
+#define TERRA_CLARA ((Color){145, 108, 70, 255})
 
-#define PEDRA            ((Color){75, 77, 72, 255})
-#define PEDRA_CLARA      ((Color){120, 121, 110, 255})
+#define PEDRA ((Color){75, 77, 72, 255})
+#define PEDRA_CLARA ((Color){120, 121, 110, 255})
 
-#define VERDE_ARVORE     ((Color){24, 65, 39, 255})
+#define VERDE_ARVORE ((Color){24, 65, 39, 255})
 #define VERDE_ARVORE_CLARO ((Color){39, 91, 48, 255})
 
-#define TRONCO           ((Color){91, 62, 39, 255})
-#define RUNA             ((Color){75, 183, 190, 255})
+#define TRONCO ((Color){91, 62, 39, 255})
+#define RUNA ((Color){75, 183, 190, 255})
 
 /* =========================================================
    INICIALIZAÇÃO DO MAPA
@@ -223,7 +223,7 @@ int posicionarTorre(Jogo *jogo, int linha, int coluna, char tipo)
         return 0;
     }
 
-    if (tipo != 'T' && tipo != 'G')
+    if (tipo != 'A' && tipo != 'G' && tipo != 'T')
     {
         return 0;
     }
@@ -372,18 +372,12 @@ static void desenharCaminho(Jogo *jogo, int posX, int posY,
     for (i = 0; i < jogo->quantidadeCaminho - 1; i++)
     {
         Vector2 inicio = {
-            posX + jogo->caminho[i].coluna * larguraCelula
-                 + larguraCelula / 2.0f,
-            posY + jogo->caminho[i].linha * alturaCelula
-                 + alturaCelula / 2.0f
-        };
+            posX + jogo->caminho[i].coluna * larguraCelula + larguraCelula / 2.0f,
+            posY + jogo->caminho[i].linha * alturaCelula + alturaCelula / 2.0f};
 
         Vector2 fim = {
-            posX + jogo->caminho[i + 1].coluna * larguraCelula
-                 + larguraCelula / 2.0f,
-            posY + jogo->caminho[i + 1].linha * alturaCelula
-                 + alturaCelula / 2.0f
-        };
+            posX + jogo->caminho[i + 1].coluna * larguraCelula + larguraCelula / 2.0f,
+            posY + jogo->caminho[i + 1].linha * alturaCelula + alturaCelula / 2.0f};
 
         DrawLineEx(inicio, fim, 43, PEDRA);
     }
@@ -392,11 +386,8 @@ static void desenharCaminho(Jogo *jogo, int posX, int posY,
     for (i = 0; i < jogo->quantidadeCaminho; i++)
     {
         Vector2 centro = {
-            posX + jogo->caminho[i].coluna * larguraCelula
-                 + larguraCelula / 2.0f,
-            posY + jogo->caminho[i].linha * alturaCelula
-                 + alturaCelula / 2.0f
-        };
+            posX + jogo->caminho[i].coluna * larguraCelula + larguraCelula / 2.0f,
+            posY + jogo->caminho[i].linha * alturaCelula + alturaCelula / 2.0f};
 
         DrawCircleV(centro, 21.5f, PEDRA);
     }
@@ -405,18 +396,12 @@ static void desenharCaminho(Jogo *jogo, int posX, int posY,
     for (i = 0; i < jogo->quantidadeCaminho - 1; i++)
     {
         Vector2 inicio = {
-            posX + jogo->caminho[i].coluna * larguraCelula
-                 + larguraCelula / 2.0f,
-            posY + jogo->caminho[i].linha * alturaCelula
-                 + alturaCelula / 2.0f
-        };
+            posX + jogo->caminho[i].coluna * larguraCelula + larguraCelula / 2.0f,
+            posY + jogo->caminho[i].linha * alturaCelula + alturaCelula / 2.0f};
 
         Vector2 fim = {
-            posX + jogo->caminho[i + 1].coluna * larguraCelula
-                 + larguraCelula / 2.0f,
-            posY + jogo->caminho[i + 1].linha * alturaCelula
-                 + alturaCelula / 2.0f
-        };
+            posX + jogo->caminho[i + 1].coluna * larguraCelula + larguraCelula / 2.0f,
+            posY + jogo->caminho[i + 1].linha * alturaCelula + alturaCelula / 2.0f};
 
         DrawLineEx(inicio, fim, 35, TERRA);
     }
@@ -424,11 +409,8 @@ static void desenharCaminho(Jogo *jogo, int posX, int posY,
     for (i = 0; i < jogo->quantidadeCaminho; i++)
     {
         Vector2 centro = {
-            posX + jogo->caminho[i].coluna * larguraCelula
-                 + larguraCelula / 2.0f,
-            posY + jogo->caminho[i].linha * alturaCelula
-                 + alturaCelula / 2.0f
-        };
+            posX + jogo->caminho[i].coluna * larguraCelula + larguraCelula / 2.0f,
+            posY + jogo->caminho[i].linha * alturaCelula + alturaCelula / 2.0f};
 
         DrawCircleV(centro, 17.5f, TERRA);
     }
@@ -471,39 +453,45 @@ static void desenharObjetos(Jogo *jogo, int posX, int posY,
 
             switch (jogo->mapa[linha][coluna])
             {
-                case 'V':
-                    desenharArvore(x, y + 3, 35);
-                    break;
 
-                case '#':
-                    desenharPedra(x, y, 30);
-                    break;
+            case 'A':
+                DrawCircle(x, y, 17, (Color){151, 105, 55, 255});
+                DrawCircle(x, y - 7, 10, (Color){220, 177, 104, 255});
+                break;
 
-                case 'L':
-                    desenharTronco(x, y);
-                    break;
+            case 'V':
+                desenharArvore(x, y + 3, 35);
+                break;
 
-                case 'R':
-                    desenharRuna(x, y);
-                    break;
+            case '#':
+                desenharPedra(x, y, 30);
+                break;
 
-                case 'E':
-                    desenharEntrada(x, y);
-                    break;
+            case 'L':
+                desenharTronco(x, y);
+                break;
 
-                case 'B':
-                    desenharYggdrasil(x, y + 5);
-                    break;
+            case 'R':
+                desenharRuna(x, y);
+                break;
 
-                case 'T':
-                    DrawCircle(x, y, 17, (Color){175, 133, 68, 255});
-                    DrawCircle(x, y - 7, 10, (Color){225, 190, 115, 255});
-                    break;
+            case 'E':
+                desenharEntrada(x, y);
+                break;
 
-                case 'G':
-                    DrawCircle(x, y, 17, (Color){78, 135, 195, 255});
-                    DrawCircle(x, y - 7, 10, (Color){145, 205, 245, 255});
-                    break;
+            case 'B':
+                desenharYggdrasil(x, y + 5);
+                break;
+
+            case 'T':
+                DrawCircle(x, y, 17, (Color){175, 133, 68, 255});
+                DrawCircle(x, y - 7, 10, (Color){225, 190, 115, 255});
+                break;
+
+            case 'G':
+                DrawCircle(x, y, 17, (Color){78, 135, 195, 255});
+                DrawCircle(x, y - 7, 10, (Color){145, 205, 245, 255});
+                break;
             }
         }
     }
@@ -512,6 +500,7 @@ static void desenharObjetos(Jogo *jogo, int posX, int posY,
 /* =========================================================
    DESENHO DO MAPA COMPLETO
    ========================================================= */
+
 
 void desenharMapa(Jogo *jogo, int posX, int posY,
                   int larguraCelula, int alturaCelula)
@@ -526,67 +515,80 @@ void desenharMapa(Jogo *jogo, int posX, int posY,
         altura
     };
 
-    /* Sombra externa */
-    DrawRectangleRounded(
-        (Rectangle){
-            posX - 8,
-            posY + 12,
-            largura + 16,
-            altura + 16
-        },
-        0.035f,
-        8,
-        (Color){10, 23, 18, 150}
+    DrawRectangle(
+        posX,
+        posY,
+        largura,
+        altura,
+        (Color){24, 43, 29, 255}
     );
 
-    /* Parte inferior elevada do terreno */
-    DrawRectangleRounded(
-        (Rectangle){
-            posX - 5,
-            posY + 5,
-            largura + 10,
-            altura + 8
-        },
-        0.035f,
-        8,
-        (Color){30, 55, 38, 255}
+    DrawRectangle(
+        posX,
+        posY,
+        largura,
+        altura,
+        (Color){39, 65, 40, 255}
     );
 
-    /* Superfície única de grama */
-    DrawRectangleRounded(
-        terreno,
-        0.035f,
-        8,
-        GRAMA_BASE
-    );
-
-    /* Textura irregular da grama */
-    for (int i = 0; i < 180; i++)
+    for (int i = 0; i < 450; i++)
     {
-        int x = posX + 8 + (i * 67) % (largura - 16);
-        int y = posY + 8 + (i * 43) % (altura - 16);
+        int x = posX + 5 + (i * 67) % (largura - 10);
+        int y = posY + 5 + (i * 43) % (altura - 10);
 
-        int tamanho = 2 + i % 3;
+        int tamanho = 2 + i % 4;
 
-        Color detalhe = (i % 2 == 0)
-                        ? GRAMA_CLARA
-                        : GRAMA_ESCURO;
+        Color detalhe;
+
+        if (i % 3 == 0)
+        {
+            detalhe = (Color){55, 83, 48, 100};
+        }
+        else if (i % 3 == 1)
+        {
+            detalhe = (Color){18, 43, 29, 100};
+        }
+        else
+        {
+            detalhe = (Color){91, 103, 55, 75};
+        }
 
         DrawCircle(x, y, tamanho, detalhe);
     }
 
-    /* Contorno externo */
-    DrawRectangleRoundedLines(
-        terreno,
-        0.035f,
-        8,
-        (Color){24, 49, 31, 255}
+    for (int i = 0; i < 90; i++)
+    {
+        int x = posX + 8 + (i * 139) % (largura - 16);
+        int y = posY + 8 + (i * 83) % (altura - 16);
+
+        DrawLine(
+            x,
+            y,
+            x + 3 + i % 5,
+            y - 2 - i % 4,
+            (Color){103, 119, 66, 90}
+        );
+    }
+
+    desenharCaminho(
+        jogo,
+        posX,
+        posY,
+        larguraCelula,
+        alturaCelula
     );
 
-    /* Caminho e elementos */
-    desenharCaminho(jogo, posX, posY,
-                    larguraCelula, alturaCelula);
+    desenharObjetos(
+        jogo,
+        posX,
+        posY,
+        larguraCelula,
+        alturaCelula
+    );
 
-    desenharObjetos(jogo, posX, posY,
-                    larguraCelula, alturaCelula);
+    DrawRectangleLinesEx(
+        terreno,
+        3,
+        (Color){19, 35, 24, 255}
+    );
 }
