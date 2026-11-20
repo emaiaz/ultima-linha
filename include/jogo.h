@@ -21,6 +21,8 @@ typedef struct
     int vidaBase;
     int onda;
     int turno;
+
+    char torreSelecionada;
 } Jogo;
 
 
