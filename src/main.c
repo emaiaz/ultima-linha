@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "raylib.h"
 #include "jogo.h"
@@ -10,6 +12,7 @@
 #include "visual.h"
 #include "onda.h"
 #include "torre.h"
+#include "persistencia.h"
 
 #define LARGURA_TELA 1280
 #define ALTURA_TELA 720
@@ -24,7 +27,9 @@ typedef enum
 {
     MENU_INICIAL,
     MENU_INSTRUCOES,
-    EM_JOGO
+    MENU_RECORDE,
+    EM_JOGO,
+    JOGO_PAUSADO
 } EstadoTela;
 
 static Font fonteTitulo;
@@ -32,12 +37,10 @@ static Font fonteInterface;
 
 static int fonteTituloCarregada = 0;
 static int fonteInterfaceCarregada = 0;
+static char mensagemPausa[160] = "A partida esta pausada.";
 
-static const Color COR_FUNDO = {12, 25, 29, 255};
 static const Color COR_DOURADO = {236, 190, 91, 255};
 static const Color COR_PELE = {224, 178, 137, 255};
-static const Color COR_PAINEL = {15, 24, 27, 248};
-static const Color COR_PAINEL_CLARO = {27, 40, 42, 255};
 static const Color COR_BORDA = {117, 91, 53, 255};
 static const Color COR_TEXTO = {245, 239, 218, 255};
 static const Color COR_ROXO = {151, 91, 210, 255};
@@ -45,6 +48,22 @@ static const Color COR_ROXO = {151, 91, 210, 255};
 static void desenharTextoUI(const char *texto, float x, float y, float tamanho, Color cor)
 {
     DrawTextEx(fonteInterface, texto, (Vector2){x, y}, tamanho, 1.0f, cor);
+}
+
+static float desenharTextoAjustado(const char *texto, float x, float y, float larguraMaxima,
+                                   float tamanhoMaximo, float tamanhoMinimo, Color cor)
+{
+    float tamanho = tamanhoMaximo;
+    Vector2 dimensoes = MeasureTextEx(fonteInterface, texto, tamanho, 1.0f);
+
+    while (dimensoes.x > larguraMaxima && tamanho > tamanhoMinimo)
+    {
+        tamanho -= 0.5f;
+        dimensoes = MeasureTextEx(fonteInterface, texto, tamanho, 1.0f);
+    }
+
+    DrawTextEx(fonteInterface, texto, (Vector2){x, y}, tamanho, 1.0f, cor);
+    return dimensoes.x;
 }
 
 static void desenharTextoTitulo(const char *texto, float x, float y, float tamanho, Color cor)
@@ -142,7 +161,16 @@ static int desenharBotao(Rectangle botao, const char *texto, int destaque)
             (Color){255, 229, 137, 220});
     }
 
-    Vector2 tamanhoTexto = MeasureTextEx(fonteInterface, texto, 25, 1);
+    float tamanhoFonte = botao.height >= 64 ? 24.0f : botao.height >= 50 ? 21.0f
+                                                  : botao.height >= 40   ? 18.0f
+                                                                         : 16.0f;
+    Vector2 tamanhoTexto = MeasureTextEx(fonteInterface, texto, tamanhoFonte, 1.0f);
+
+    while (tamanhoTexto.x > botao.width - 24 && tamanhoFonte > 14.0f)
+    {
+        tamanhoFonte -= 0.5f;
+        tamanhoTexto = MeasureTextEx(fonteInterface, texto, tamanhoFonte, 1.0f);
+    }
 
     DrawTextEx(
         fonteInterface,
@@ -150,8 +178,8 @@ static int desenharBotao(Rectangle botao, const char *texto, int destaque)
         (Vector2){
             botao.x + (botao.width - tamanhoTexto.x) / 2,
             botao.y + (botao.height - tamanhoTexto.y) / 2},
-        25,
-        1,
+        tamanhoFonte,
+        1.0f,
         corTexto);
 
     return sobre && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
@@ -799,9 +827,10 @@ static void desenharMenuInicialDecoracao(void)
 
 static int desenharMenuInicial(void)
 {
-    Rectangle botaoJogar = {475, 550, 330, 55};
-    Rectangle botaoInstrucoes = {500, 615, 280, 43};
-    Rectangle botaoSair = {500, 665, 280, 40};
+    Rectangle botaoJogar = {475, 515, 330, 54};
+    Rectangle botaoRecordes = {500, 578, 280, 42};
+    Rectangle botaoInstrucoes = {500, 628, 280, 38};
+    Rectangle botaoSair = {500, 674, 280, 34};
 
     desenharMenuInicialDecoracao();
 
@@ -854,6 +883,9 @@ static int desenharMenuInicial(void)
     if (desenharBotao(botaoJogar, "JOGAR", 1))
         return 1;
 
+    if (desenharBotao(botaoRecordes, "RECORDES", 0))
+        return 4;
+
     if (desenharBotao(botaoInstrucoes, "COMO JOGAR", 0))
         return 2;
 
@@ -863,53 +895,198 @@ static int desenharMenuInicial(void)
     return 0;
 }
 
-static int desenharInstrucoes(void)
+static int desenharTelaRecordes(void)
 {
-    Rectangle botaoVoltar = {490, 610, 300, 55};
+    Recorde recordes[MAX_RECORDES] = {0};
+    Estatisticas estatisticas = {0};
+    int quantidade = carregarRecordes(recordes, MAX_RECORDES);
+    carregarEstatisticas(&estatisticas);
 
     ClearBackground((Color){12, 23, 29, 255});
+    DrawRectangleGradientV(0, 0, LARGURA_TELA, ALTURA_TELA,
+                           (Color){23, 43, 47, 255}, (Color){8, 17, 21, 255});
+    DrawRectangle(0, 0, LARGURA_TELA, 92, (Color){18, 35, 39, 255});
+    DrawLine(0, 91, LARGURA_TELA, 91, GOLD);
+    desenharTextoCentralizado("HALL DA GLORIA DE ASGARD", fonteTitulo, 39, 22, GOLD);
 
-    DrawRectangleGradientV(
-        0, 0,
-        LARGURA_TELA, ALTURA_TELA,
-        (Color){23, 43, 47, 255},
-        (Color){8, 17, 21, 255});
+    desenharPainel((Rectangle){55, 112, 750, 500}, (Color){13, 25, 29, 240});
+    desenharTextoUI("RANKING DOS 10 MELHORES", 82, 130, 23, GOLD);
 
-    DrawRectangle(0, 0, LARGURA_TELA, 110, (Color){18, 35, 39, 255});
-    DrawLine(0, 109, LARGURA_TELA, 109, GOLD);
+    desenharTextoUI("POS", 82, 176, 16, (Color){185, 205, 195, 255});
+    desenharTextoUI("JOGADOR", 130, 176, 16, (Color){185, 205, 195, 255});
+    desenharTextoUI("PONTOS", 315, 176, 16, (Color){185, 205, 195, 255});
+    desenharTextoUI("ONDA", 435, 176, 16, (Color){185, 205, 195, 255});
+    desenharTextoUI("RESULTADO", 505, 176, 16, (Color){185, 205, 195, 255});
+    desenharTextoUI("DATA", 650, 176, 16, (Color){185, 205, 195, 255});
+    DrawLine(78, 202, 782, 202, (Color){117, 91, 53, 180});
 
-    desenharTextoCentralizado(
-        "COMO JOGAR",
-        fonteTitulo,
-        48,
-        25,
-        GOLD);
+    if (quantidade == 0)
+    {
+        desenharTextoAjustado("Nenhuma partida registrada ainda.", 100, 250, 620, 22, 18, COR_TEXTO);
+        desenharTextoAjustado("Jogue para conquistar seu lugar no Hall da Gloria!", 100, 292, 620, 18, 15, (Color){190, 205, 195, 255});
+    }
+    else
+    {
+        for (int i = 0; i < quantidade; i++)
+        {
+            float y = 216.0f + i * 34.0f;
+            Color cor = i == 0 ? GOLD : i == 1 ? (Color){205, 215, 220, 255}
+                                    : i == 2   ? (Color){190, 135, 90, 255}
+                                               : COR_TEXTO;
+            const char *resultado = recordes[i].vitoria ? "VITORIA" : "DERROTA";
 
-    desenharPainel(
-        (Rectangle){140, 145, 1000, 420},
-        (Color){13, 25, 29, 235});
+            desenharTextoUI(TextFormat("%02d", i + 1), 84, y, 18, cor);
+            desenharTextoAjustado(recordes[i].nome, 130, y, 170, 18, 13, cor);
+            desenharTextoUI(TextFormat("%d", recordes[i].pontuacao), 315, y, 18, COR_TEXTO);
+            desenharTextoUI(TextFormat("%d/10", recordes[i].onda), 435, y, 18, COR_TEXTO);
+            desenharTextoUI(resultado, 505, y, 17, recordes[i].vitoria ? (Color){170, 225, 150, 255} : (Color){225, 135, 125, 255});
+            desenharTextoAjustado(recordes[i].data, 650, y, 125, 16, 12, (Color){190, 205, 195, 255});
+        }
+    }
 
-    desenharTextoCentralizado(
-        "Defenda Yggdrasil das criaturas de Ragnarok!",
-        fonteInterface,
-        27,
-        170,
-        RAYWHITE);
+    desenharPainel((Rectangle){830, 112, 395, 500}, (Color){13, 25, 29, 240});
+    desenharTextoUI("ESTATISTICAS GERAIS", 855, 130, 20, GOLD);
+    DrawLine(855, 166, 1200, 166, (Color){117, 91, 53, 150});
 
-    desenharTextoTitulo("CONTROLES", 190, 235, 30, GOLD);
-    desenharTextoUI("ESPACO", 205, 285, 25, SKYBLUE);
-    desenharTextoUI("Iniciar a proxima onda", 335, 285, 25, RAYWHITE);
-    desenharTextoUI("ESC", 205, 330, 25, SKYBLUE);
-    desenharTextoUI("Voltar ao menu", 335, 330, 25, RAYWHITE);
+    desenharTextoUI(TextFormat("Partidas jogadas: %d", estatisticas.partidas), 855, 185, 19, COR_TEXTO);
+    desenharTextoUI(TextFormat("Vitorias: %d", estatisticas.vitorias), 855, 229, 19, (Color){170, 225, 150, 255});
+    desenharTextoUI(TextFormat("Derrotas: %d", estatisticas.derrotas), 855, 273, 19, (Color){225, 135, 125, 255});
+    desenharTextoUI(TextFormat("Melhor onda: %d/10", estatisticas.melhorOnda), 855, 317, 19, COR_TEXTO);
+    desenharTextoAjustado(TextFormat("Maior pontuacao: %d", estatisticas.maiorPontuacao), 855, 361, 345, 19, 15, COR_TEXTO);
 
-    DrawLine(190, 380, 1090, 380, (Color){117, 91, 53, 150});
+    DrawLine(855, 410, 1200, 410, (Color){117, 91, 53, 150});
+    desenharTextoUI("COMO A PONTUACAO E CALCULADA", 855, 430, 16, GOLD);
+    desenharTextoAjustado("Onda alcancada + vida da base + moedas", 855, 462, 345, 16, 13, COR_TEXTO);
+    desenharTextoAjustado("Bonus de 5.000 pontos por vitoria", 855, 489, 345, 16, 13, COR_TEXTO);
 
-    desenharTextoTitulo("OBJETIVO", 190, 400, 30, GOLD);
-    desenharTextoUI("Impeca que os inimigos alcancem Yggdrasil.", 205, 450, 23, RAYWHITE);
-    desenharTextoUI("Sobreviva as 10 ondas para vencer.", 205, 490, 23, RAYWHITE);
-    desenharTextoUI("Na onda 9, os inimigos estarao corrompidos.", 205, 530, 23, COR_ROXO);
+    return desenharBotao((Rectangle){490, 635, 300, 58}, "VOLTAR AO MENU", 1);
+}
 
-    return desenharBotao(botaoVoltar, "VOLTAR", 1);
+static int desenharTelaNomeJogador(char nome[], int capacidade, int *campoSelecionado)
+{
+    Rectangle campo = {350, 365, 580, 66};
+    Vector2 mouse = GetMousePosition();
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        *campoSelecionado = CheckCollisionPointRec(mouse, campo);
+
+    if (*campoSelecionado)
+    {
+        int caractere = GetCharPressed();
+        while (caractere > 0)
+        {
+            int tamanho = (int)strlen(nome);
+            if (caractere >= 32 && caractere <= 126 && tamanho < capacidade - 1)
+            {
+                nome[tamanho] = (char)caractere;
+                nome[tamanho + 1] = '\0';
+            }
+            caractere = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE))
+        {
+            int tamanho = (int)strlen(nome);
+            if (tamanho > 0)
+                nome[tamanho - 1] = '\0';
+        }
+    }
+
+    desenharPainel((Rectangle){270, 215, 740, 290}, (Color){10, 20, 24, 250});
+    desenharTextoCentralizado("REGISTRE SUA JORNADA", fonteTitulo, 40, 245, GOLD);
+    desenharTextoCentralizado("Digite seu nome para salvar o resultado", fonteInterface, 23, 315, COR_TEXTO);
+
+    DrawRectangleRounded(campo, 0.12f, 8, *campoSelecionado ? (Color){32, 49, 49, 255} : (Color){23, 34, 36, 255});
+    DrawRectangleRoundedLinesEx(campo, 0.12f, 8, *campoSelecionado ? 3 : 2,
+                                *campoSelecionado ? (Color){255, 218, 120, 255} : COR_BORDA);
+
+    const char *texto = nome[0] == '\0' ? "Digite seu nome..." : nome;
+    Color corTexto = nome[0] == '\0' ? (Color){145, 158, 151, 255} : RAYWHITE;
+    Vector2 dimensoes = MeasureTextEx(fonteInterface, texto, 30, 1.2f);
+    float x = campo.x + (campo.width - dimensoes.x) / 2.0f;
+    float y = campo.y + (campo.height - dimensoes.y) / 2.0f;
+    DrawTextEx(fonteInterface, texto, (Vector2){x, y}, 30, 1.2f, corTexto);
+
+    if (*campoSelecionado && ((int)(GetTime() * 2.0) % 2 == 0))
+    {
+        float cursorX = nome[0] == '\0' ? x : x + dimensoes.x + 3.0f;
+        DrawRectangle((int)cursorX, (int)(campo.y + 17), 3, 32, GOLD);
+    }
+
+    desenharTextoCentralizado("CLIQUE NO CAMPO PARA DIGITAR", fonteInterface, 16, 448, (Color){190, 205, 195, 255});
+    desenharTextoCentralizado("ENTER: confirmar     BACKSPACE: apagar", fonteInterface, 18, 475, (Color){220, 210, 180, 255});
+    return *campoSelecionado && IsKeyPressed(KEY_ENTER) && nome[0] != '\0';
+}
+
+static int paginaInstrucoes = 0;
+
+static int desenharInstrucoes(void)
+{
+    ClearBackground((Color){12, 23, 29, 255});
+    DrawRectangleGradientV(0, 0, LARGURA_TELA, ALTURA_TELA,
+                           (Color){23, 43, 47, 255}, (Color){8, 17, 21, 255});
+    DrawRectangle(0, 0, LARGURA_TELA, 105, (Color){18, 35, 39, 255});
+    DrawLine(0, 104, LARGURA_TELA, 104, GOLD);
+    desenharTextoCentralizado("COMO JOGAR", fonteTitulo, 48, 22, GOLD);
+
+    Rectangle painel = {105, 125, 1070, 455};
+    desenharPainel(painel, (Color){13, 25, 29, 242});
+    desenharTextoUI(TextFormat("GUIA DO JOGADOR  -  %d/3", paginaInstrucoes + 1), 140, 140, 19, (Color){190, 205, 195, 255});
+
+    if (paginaInstrucoes == 0)
+    {
+        desenharTextoTitulo("1. OBJETIVO E ONDAS", 145, 180, 31, GOLD);
+        desenharTextoUI("Defenda Yggdrasil: impeca que as criaturas atravessem o caminho e alcancem a base.", 150, 232, 21, RAYWHITE);
+        desenharTextoUI("Cada inimigo que chega ao fim causa dano a vida da base.", 150, 266, 21, RAYWHITE);
+        desenharTextoUI("A partida termina em derrota quando a vida de Yggdrasil chega a zero.", 150, 300, 21, (Color){235, 155, 145, 255});
+        DrawLine(145, 345, 1135, 345, (Color){117, 91, 53, 170});
+        desenharTextoTitulo("CAMPANHA: 10 ONDAS", 145, 365, 27, GOLD);
+        desenharTextoUI("Pressione ESPACO para iniciar cada onda. Derrote todos os inimigos", 150, 408, 20, RAYWHITE);
+        desenharTextoUI("para avancar. Vida, dano e velocidade aumentam a cada onda.", 150, 439, 20, RAYWHITE);
+        desenharTextoUI("Nas ondas avancadas surgem Fenrir, Troll e Guerreiro de Hel.", 150, 474, 20, RAYWHITE);
+        desenharTextoUI("Onda 9: inimigos corrompidos. Onda 10: Jormungandr, chefe final.", 150, 508, 20, COR_ROXO);
+        desenharTextoUI("Dica: planeje o posicionamento das torres entre as ondas.", 150, 544, 18, (Color){220, 205, 160, 255});
+    }
+    else if (paginaInstrucoes == 1)
+    {
+        desenharTextoTitulo("2. CONSTRUIR, MELHORAR E VENDER", 145, 180, 29, GOLD);
+        desenharTextoUI("1. Clique em um tipo de torre na barra inferior para seleciona-lo.", 150, 225, 20, RAYWHITE);
+        desenharTextoUI("2. Clique em uma casa livre (terreno marcado como espaco vazio) para construir.", 150, 258, 20, RAYWHITE);
+        desenharTextoUI("A construcao so ocorre em posicao valida e se voce tiver moedas suficientes.", 150, 291, 20, RAYWHITE);
+        DrawLine(145, 328, 1135, 328, (Color){117, 91, 53, 170});
+        desenharTextoTitulo("TIPOS DE TORRE", 145, 345, 25, GOLD);
+        desenharTextoUI("ARQUEIRO - ataque convencional equilibrado. Custo: 50 moedas.", 150, 383, 19, (Color){235, 205, 150, 255});
+        desenharTextoUI("GELO - causa dano e reduz a velocidade do alvo por 2 segundos. Custo: 65.", 150, 414, 19, (Color){150, 220, 250, 255});
+        desenharTextoUI("TROVAO - dano eletrico; pode atingir ate 2 inimigos proximos do alvo", 150, 445, 19, (Color){205, 165, 245, 255});
+        desenharTextoUI("adicionais, causando metade do dano. Custo: 90 moedas.", 150, 474, 19, (Color){205, 165, 245, 255});
+        desenharTextoTitulo("MELHORIA E VENDA", 145, 505, 23, GOLD);
+        desenharTextoUI("Melhorias ate nivel 3: arqueiro 50/100; gelo 65/130; trovao 90/180 moedas.", 150, 538, 17, RAYWHITE);
+        desenharTextoUI("Vender devolve 50% de todo o investimento (construcao + melhorias).", 150, 562, 17, RAYWHITE);
+    }
+    else
+    {
+        desenharTextoTitulo("3. CONTROLES E DICAS", 145, 180, 31, GOLD);
+        desenharTextoUI("BOTAO ESQUERDO - clique nos cartoes inferiores para escolher a torre.", 150, 232, 21, RAYWHITE);
+        desenharTextoUI("BOTAO ESQUERDO - clique em casa livre para construir ou numa torre para seleciona-la.", 150, 270, 20, RAYWHITE);
+        desenharTextoUI("BOTAO ESQUERDO - com uma torre selecionada, use MELHORAR ou VENDER no painel.", 150, 307, 20, RAYWHITE);
+        desenharTextoUI("Para cancelar, escolha outro cartao ou clique numa casa vazia.", 150, 344, 19, RAYWHITE);
+        desenharTextoUI("Esse clique tambem tenta construir no local escolhido.", 150, 375, 19, RAYWHITE);
+        DrawLine(145, 408, 1135, 408, (Color){117, 91, 53, 170});
+        desenharTextoUI("ESPACO - inicia a proxima onda quando a onda atual nao esta ativa.", 150, 427, 20, SKYBLUE);
+        desenharTextoUI("PAUSAR - botao no canto superior direito; CONTINUAR retoma a partida.", 150, 462, 20, SKYBLUE);
+        desenharTextoUI("ESC - retorna ao menu nas telas de instrucoes e recordes. Nao pausa a partida.", 150, 497, 18, SKYBLUE);
+        desenharTextoUI("Na pausa: salvar, carregar, reiniciar do inicio ou voltar ao menu.", 150, 530, 19, RAYWHITE);
+        desenharTextoUI("As torres nao podem ocupar o caminho dos inimigos.", 150, 558, 18, (Color){220, 205, 160, 255});
+    }
+
+    int voltar = desenharBotao((Rectangle){105, 610, 220, 55}, "VOLTAR", 0);
+    if (desenharBotao((Rectangle){835, 610, 150, 55}, "ANTERIOR", 0) && paginaInstrucoes > 0)
+        paginaInstrucoes--;
+    if (desenharBotao((Rectangle){1000, 610, 175, 55}, paginaInstrucoes == 2 ? "REINICIAR" : "PROXIMA", 1))
+        paginaInstrucoes = paginaInstrucoes == 2 ? 0 : paginaInstrucoes + 1;
+    if (voltar)
+        paginaInstrucoes = 0;
+    return voltar;
 }
 
 static void desenharBarraIndicadora(float x, float y, float largura, float altura, float valor, Color cor)
@@ -936,7 +1113,6 @@ static void desenharBarraIndicadora(float x, float y, float largura, float altur
 static void desenharHUD(Jogo *jogo)
 {
     float porcentagemVida = jogo->vidaBase / 100.0f;
-    float tempo = (float)GetTime();
 
     DrawRectangleGradientV(
         0, 0,
@@ -951,7 +1127,7 @@ static void desenharHUD(Jogo *jogo)
 
     DrawLineEx((Vector2){280, 19}, (Vector2){280, 83}, 1, (Color){135, 112, 75, 130});
 
-    desenharTextoUI("MOEDAS", 320, 13, 17, (Color){182, 182, 168, 255});
+    desenharTextoUI("MOEDAS", 320, 13, 19, (Color){182, 182, 168, 255});
 
     DrawCircle(329, 58, 12, (Color){120, 85, 34, 255});
     DrawCircle(329, 58, 8, GOLD);
@@ -961,7 +1137,7 @@ static void desenharHUD(Jogo *jogo)
 
     DrawLineEx((Vector2){510, 19}, (Vector2){510, 83}, 1, (Color){135, 112, 75, 130});
 
-    desenharTextoUI("YGGDRASIL", 550, 13, 17, (Color){182, 182, 168, 255});
+    desenharTextoUI("YGGDRASIL", 550, 13, 19, (Color){182, 182, 168, 255});
 
     desenharTextoTitulo(
         TextFormat("%d / 100", jogo->vidaBase),
@@ -977,7 +1153,7 @@ static void desenharHUD(Jogo *jogo)
 
     DrawLineEx((Vector2){750, 19}, (Vector2){750, 83}, 1, (Color){135, 112, 75, 130});
 
-    desenharTextoUI("ONDA ATUAL", 790, 13, 17, (Color){182, 182, 168, 255});
+    desenharTextoUI("ONDA ATUAL", 790, 13, 20, (Color){182, 182, 168, 255});
 
     desenharTextoTitulo(
         TextFormat("%02d / 10", jogo->onda),
@@ -986,21 +1162,12 @@ static void desenharHUD(Jogo *jogo)
 
     DrawLineEx((Vector2){965, 19}, (Vector2){965, 83}, 1, (Color){135, 112, 75, 130});
 
-    desenharTextoUI("A DEFESA DE YGGDRASIL", 1000, 22, 18, (Color){210, 190, 145, 255});
-    desenharTextoUI("Prepare suas defesas", 1000, 51, 16, LIGHTGRAY);
-
-    DrawCircleLines(
-        1230,
-        51,
-        18 + sinf(tempo * 2.0f) * 1.5f,
-        (Color){190, 151, 78, 130});
-
-    DrawCircle(1230, 51, 5, GOLD);
+    desenharBotao((Rectangle){1080, 20, 175, 65}, "PAUSAR", 0);
 }
 
 static void desenharMensagem(const char *mensagem)
 {
-    Vector2 dimensoes = MeasureTextEx(fonteInterface, mensagem, 25, 1);
+    Vector2 dimensoes = MeasureTextEx(fonteInterface, mensagem, 21, 1);
     float largura = dimensoes.x;
 
     DrawRectangleRounded(
@@ -1017,7 +1184,7 @@ static void desenharMensagem(const char *mensagem)
         mensagem,
         LARGURA_TELA / 2.0f - largura / 2.0f,
         644,
-        25,
+        21,
         RAYWHITE);
 }
 
@@ -1079,8 +1246,8 @@ static void desenharCartaoTorre(Rectangle area, TipoTorre tipo, const char *nome
 
     desenharIconeTorre(tipo, area.x + 30, area.y + 34, cor);
 
-    desenharTextoUI(nome, area.x + 55, area.y + 10, 17, RAYWHITE);
-    desenharTextoUI(preco, area.x + 55, area.y + 37, 15, (Color){220, 190, 125, 255});
+    desenharTextoUI(nome, area.x + 55, area.y + 10, 19, RAYWHITE);
+    desenharTextoUI(preco, area.x + 55, area.y + 37, 17, (Color){220, 190, 125, 255});
 
     DrawCircle(
         (int)(area.x + area.width - 17),
@@ -1130,7 +1297,7 @@ static void desenharPainelTorre(Torre torres[], int indice)
     desenharTextoUI(TextFormat("DANO  %d", torre.dano), 700, 636, 17, RAYWHITE);
     desenharTextoUI(TextFormat("ALCANCE  %.0f", torre.alcance), 700, 663, 15, (Color){190, 205, 205, 255});
     desenharTextoUI(TextFormat("VENDA  %d", valorVenda), 865, 636, 17, GOLD);
-    desenharTextoUI("50% DO INVESTIMENTO", 865, 665, 12, LIGHTGRAY);
+    desenharTextoUI("50% DO INVESTIMENTO", 865, 665, 14, LIGHTGRAY);
 
     Rectangle botaoUpgrade = {1015, 635, 110, 65};
     Rectangle botaoVenda = {1135, 635, 115, 65};
@@ -1152,11 +1319,11 @@ static void desenharPainelTorre(Torre torres[], int indice)
     else
     {
         desenharTextoUI("MELHORAR", 1020, 641, 15, WHITE);
-        desenharTextoUI(TextFormat("%d moedas", torre.custo * torre.nivel), 1020, 671, 12, (Color){225, 205, 150, 255});
+        desenharTextoUI(TextFormat("%d moedas", torre.custo * torre.nivel), 1020, 671, 14, (Color){225, 205, 150, 255});
     }
 
     desenharTextoUI("VENDER", 1150, 642, 17, WHITE);
-    desenharTextoUI(TextFormat("+%d moedas", valorVenda), 1145, 671, 13, (Color){239, 183, 132, 255});
+    desenharTextoUI(TextFormat("+%d moedas", valorVenda), 1145, 671, 14, (Color){239, 183, 132, 255});
 }
 
 static void desenharPainelConstrucoes(TipoTorre tipoTorreSelecionada)
@@ -1169,7 +1336,7 @@ static void desenharPainelConstrucoes(TipoTorre tipoTorreSelecionada)
 
     DrawRectangle(0, 620, LARGURA_TELA, 2, COR_BORDA);
 
-    desenharTextoUI("CONSTRUIR", 22, 622, 14, (Color){174, 155, 116, 255});
+    desenharTextoUI("CONSTRUIR", 22, 622, 16, (Color){174, 155, 116, 255});
 
     desenharCartaoTorre(
         (Rectangle){20, 640, 150, 65},
@@ -1207,7 +1374,7 @@ static void desenharPainelOnda(int ondaIniciada, int inimigosCriados, int totalI
     }
     else
     {
-        desenharTextoUI("INIMIGOS", 650, 638, 14, LIGHTGRAY);
+        desenharTextoUI("INIMIGOS", 650, 638, 16, LIGHTGRAY);
 
         desenharTextoTitulo(
             TextFormat("%d / %d", inimigosCriados, totalInimigosOnda),
@@ -1236,6 +1403,56 @@ static void desenharTelaFinal(int vitoria, int derrota)
         desenharTextoCentralizado("Yggdrasil foi destruido!", fonteInterface, 30, 370, RAYWHITE);
         desenharTextoCentralizado("Ragnarok consumiu os nove mundos.", fonteInterface, 21, 420, (Color){190, 175, 175, 255});
     }
+
+    desenharTextoCentralizado("Escolha uma opcao", fonteInterface, 20, 455, GOLD);
+}
+
+static int desenharMenuPausa(const Jogo *jogo)
+{
+    DrawRectangle(0, 0, LARGURA_TELA, ALTURA_TELA, (Color){0, 0, 0, 205});
+    desenharPainel((Rectangle){350, 65, 580, 590}, (Color){13, 23, 27, 252});
+    desenharTextoCentralizado("JOGO PAUSADO", fonteTitulo, 43, 88, GOLD);
+    desenharTextoCentralizado("Sua jornada esta segura enquanto voce decide.", fonteInterface, 20, 143, COR_TEXTO);
+    desenharTextoCentralizado(TextFormat("Estado atual: onda %d  |  %d moedas  |  %d de vida", jogo->onda, jogo->moedas, jogo->vidaBase), fonteInterface, 17, 177, (Color){190, 210, 195, 255});
+
+    if (desenharBotao((Rectangle){490, 220, 300, 52}, "CONTINUAR", 1))
+        return 1;
+    if (desenharBotao((Rectangle){490, 282, 300, 52}, "SALVAR PARTIDA", 0))
+        return 2;
+    if (desenharBotao((Rectangle){490, 344, 300, 52}, "CARREGAR PARTIDA", 0))
+        return 3;
+    if (desenharBotao((Rectangle){490, 406, 300, 52}, "REINICIAR DO INICIO", 0))
+        return 4;
+    if (desenharBotao((Rectangle){490, 468, 300, 52}, "VOLTAR AO MENU", 0))
+        return 5;
+    desenharTextoCentralizado(mensagemPausa, fonteInterface, 16, 550, (Color){232, 211, 155, 255});
+    return 0;
+}
+
+static int desenharBotoesTelaFinal(void)
+{
+    if (desenharBotao((Rectangle){350, 515, 270, 66}, "JOGAR NOVAMENTE", 1))
+        return 1;
+    if (desenharBotao((Rectangle){660, 515, 270, 66}, "MENU INICIAL", 0))
+        return 2;
+    return 0;
+}
+
+static void desenharDestaqueTorreSelecionada(const Torre torres[], int indice)
+{
+    if (indice < 0 || indice >= MAX_TORRES || !torres[indice].ativo)
+        return;
+
+    float x = (float)(ORIGEM_X + torres[indice].coluna * LARGURA_CELULA);
+    float y = (float)(ORIGEM_Y + torres[indice].linha * ALTURA_CELULA);
+    float pulso = 0.5f + 0.5f * sinf((float)GetTime() * 5.0f);
+    unsigned char alpha = (unsigned char)(150.0f + pulso * 105.0f);
+    Color brilho = (Color){255, 218, 105, alpha};
+    Rectangle celula = {x + 3, y + 3, LARGURA_CELULA - 6, ALTURA_CELULA - 6};
+
+    DrawRectangleLinesEx(celula, 4.0f, brilho);
+    DrawRectangleLinesEx((Rectangle){x + 8, y + 8, LARGURA_CELULA - 16, ALTURA_CELULA - 16}, 1.5f, (Color){255, 245, 190, 210});
+    DrawCircleLines((int)(x + LARGURA_CELULA / 2), (int)(y + ALTURA_CELULA / 2), 25.0f + pulso * 4.0f, brilho);
 }
 
 static void desenharPartida(
@@ -1256,6 +1473,7 @@ static void desenharPartida(
     desenharMapa(jogo, ORIGEM_X, ORIGEM_Y, LARGURA_CELULA, ALTURA_CELULA);
 
     desenharTorres(torres, MAX_TORRES, ORIGEM_X, ORIGEM_Y, LARGURA_CELULA, ALTURA_CELULA);
+    desenharDestaqueTorreSelecionada(torres, torreSelecionada);
 
     desenharInimigos(inimigos, MAX_INIMIGOS, jogo, ORIGEM_X, ORIGEM_Y, LARGURA_CELULA, ALTURA_CELULA);
 
@@ -1276,8 +1494,8 @@ static void desenharPartida(
 int main(void)
 {
     Jogo jogo;
-    Inimigo inimigos[MAX_INIMIGOS];
-    Torre torres[MAX_TORRES];
+    Inimigo *inimigos = malloc(MAX_INIMIGOS * sizeof(Inimigo));
+    Torre *torres = malloc(MAX_TORRES * sizeof(Torre));
 
     TipoTorre tipoTorreSelecionada = TORRE_ARQUEIRO;
     int torreSelecionada = -1;
@@ -1288,6 +1506,16 @@ int main(void)
 
     int vitoria = 0;
     int derrota = 0;
+    int resultadoRegistrado = 0;
+    char nomeJogador[TAM_NOME_JOGADOR] = "";
+    int campoNomeSelecionado = 1;
+
+    if (inimigos == NULL || torres == NULL)
+    {
+        free(inimigos);
+        free(torres);
+        return 1;
+    }
 
     inicializarJogo(&jogo);
     inicializarOnda(&onda);
@@ -1303,8 +1531,13 @@ int main(void)
     SetTargetFPS(FPS);
     SetExitKey(KEY_NULL);
 
-    fonteTitulo = LoadFontEx("C:/Windows/Fonts/georgiab.ttf", 96, NULL, 0);
-    fonteInterface = LoadFontEx("C:/Windows/Fonts/segoeuib.ttf", 64, NULL, 0);
+    fonteTitulo = LoadFontEx("C:/Windows/Fonts/timesbd.ttf", 96, NULL, 0);
+    if (fonteTitulo.texture.id == 0)
+        fonteTitulo = LoadFontEx("assets/fontes/TimesNewRoman-Bold.ttf", 96, NULL, 0);
+
+    fonteInterface = LoadFontEx("C:/Windows/Fonts/times.ttf", 48, NULL, 0);
+    if (fonteInterface.texture.id == 0)
+        fonteInterface = LoadFontEx("assets/fontes/TimesNewRoman.ttf", 48, NULL, 0);
 
     if (fonteTitulo.texture.id != 0)
     {
@@ -1316,15 +1549,9 @@ int main(void)
         fonteTitulo = GetFontDefault();
     }
 
-    if (fonteInterface.texture.id != 0)
-    {
-        fonteInterfaceCarregada = 1;
-        SetTextureFilter(fonteInterface.texture, TEXTURE_FILTER_BILINEAR);
-    }
-    else
-    {
+    fonteInterfaceCarregada = fonteInterface.texture.id != 0;
+    if (!fonteInterfaceCarregada)
         fonteInterface = GetFontDefault();
-    }
 
     while (!WindowShouldClose())
     {
@@ -1340,6 +1567,19 @@ int main(void)
 
             if (escolha == 1)
             {
+                inicializarJogo(&jogo);
+                inicializarOnda(&onda);
+                inicializarMapa(&jogo);
+                inicializarInimigos(inimigos, MAX_INIMIGOS);
+                inicializarTorres(torres, MAX_TORRES);
+                tipoTorreSelecionada = TORRE_ARQUEIRO;
+                torreSelecionada = -1;
+                vitoria = 0;
+                derrota = 0;
+                resultadoRegistrado = 0;
+                nomeJogador[0] = '\0';
+                campoNomeSelecionado = 1;
+                snprintf(mensagemPausa, sizeof(mensagemPausa), "A partida esta pausada.");
                 telaAtual = EM_JOGO;
             }
             else if (escolha == 2)
@@ -1350,6 +1590,18 @@ int main(void)
             {
                 break;
             }
+            else if (escolha == 4)
+            {
+                telaAtual = MENU_RECORDE;
+            }
+        }
+        else if (telaAtual == MENU_RECORDE)
+        {
+            BeginDrawing();
+            int voltar = desenharTelaRecordes();
+            EndDrawing();
+            if (voltar || IsKeyPressed(KEY_ESCAPE))
+                telaAtual = MENU_INICIAL;
         }
         else if (telaAtual == MENU_INSTRUCOES)
         {
@@ -1364,43 +1616,98 @@ int main(void)
         }
         else if (telaAtual == EM_JOGO)
         {
-            if (IsKeyPressed(KEY_ESCAPE))
-                telaAtual = MENU_INICIAL;
+            if (!vitoria && !derrota && IsMouseButtonReleased(MOUSE_BUTTON_LEFT) &&
+                CheckCollisionPointRec(GetMousePosition(), (Rectangle){1080, 20, 175, 65}))
+                telaAtual = JOGO_PAUSADO;
+
+            if (!vitoria && !derrota && IsKeyPressed(KEY_SPACE) && !onda.iniciada)
+                iniciarOnda(&onda, jogo.onda);
+
+            if (vitoria || derrota)
+            {
+                if (!resultadoRegistrado)
+                {
+                    BeginDrawing();
+                    desenharPartida(&jogo, inimigos, torres, onda.iniciada,
+                                    onda.inimigosCriados, onda.totalInimigos,
+                                    vitoria, derrota, tipoTorreSelecionada, torreSelecionada);
+                    int confirmouNome = desenharTelaNomeJogador(nomeJogador, TAM_NOME_JOGADOR, &campoNomeSelecionado);
+                    EndDrawing();
+
+                    if (confirmouNome)
+                    {
+                        int ondaAlcancada = vitoria ? 10 : jogo.onda;
+                        int pontuacao = ondaAlcancada * 1000 + jogo.vidaBase * 20 + jogo.moedas;
+                        if (vitoria)
+                            pontuacao += 5000;
+                        resultadoRegistrado = registrarPartida(nomeJogador, pontuacao,
+                                                               ondaAlcancada, vitoria,
+                                                               jogo.vidaBase, jogo.moedas);
+                    }
+                    continue;
+                }
+
+                BeginDrawing();
+                desenharPartida(&jogo, inimigos, torres, onda.iniciada,
+                                onda.inimigosCriados, onda.totalInimigos,
+                                vitoria, derrota, tipoTorreSelecionada, torreSelecionada);
+                int escolhaFinal = desenharBotoesTelaFinal();
+                EndDrawing();
+
+                if (escolhaFinal == 1)
+                {
+                    inicializarJogo(&jogo);
+                    inicializarOnda(&onda);
+                    inicializarMapa(&jogo);
+                    inicializarInimigos(inimigos, MAX_INIMIGOS);
+                    inicializarTorres(torres, MAX_TORRES);
+                    torreSelecionada = -1;
+                    tipoTorreSelecionada = TORRE_ARQUEIRO;
+                    vitoria = 0;
+                    derrota = 0;
+                    resultadoRegistrado = 0;
+                    nomeJogador[0] = '\0';
+                    campoNomeSelecionado = 1;
+                }
+                else if (escolhaFinal == 2)
+                    telaAtual = MENU_INICIAL;
+                continue;
+            }
 
             if (!vitoria && !derrota &&
-                IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
             {
                 Vector2 mouse = GetMousePosition();
+                Rectangle botaoMelhoria = {1015, 635, 110, 65};
+                Rectangle botaoVenda = {1135, 635, 115, 65};
 
-                if (mouse.y >= 620 && mouse.y <= 720)
+                if (torreSelecionada != -1 &&
+                    CheckCollisionPointRec(mouse, botaoVenda))
+                {
+                    if (venderTorre(torres, MAX_TORRES, &jogo, torreSelecionada))
+                        torreSelecionada = -1;
+                }
+                else if (torreSelecionada != -1 &&
+                         CheckCollisionPointRec(mouse, botaoMelhoria))
+                {
+                    melhorarTorre(torres, MAX_TORRES, &jogo, torreSelecionada);
+                }
+                else if (mouse.y >= 620 && mouse.y <= 720)
                 {
                     if (mouse.x >= 20 && mouse.x <= 170)
                     {
-                        tipoTorreSelecionada = TORRE_ARQUEIRO;
+                        tipoTorreSelecionada = (tipoTorreSelecionada == TORRE_ARQUEIRO) ? -1 : TORRE_ARQUEIRO;
                         torreSelecionada = -1;
                     }
                     else if (mouse.x >= 180 && mouse.x <= 330)
                     {
-                        tipoTorreSelecionada = TORRE_GELO;
+                        tipoTorreSelecionada = (tipoTorreSelecionada == TORRE_GELO) ? -1 : TORRE_GELO;
                         torreSelecionada = -1;
                     }
                     else if (mouse.x >= 340 && mouse.x <= 490)
                     {
-                        tipoTorreSelecionada = TORRE_TROVAO;
+                        tipoTorreSelecionada = (tipoTorreSelecionada == TORRE_TROVAO) ? -1 : TORRE_TROVAO;
                         torreSelecionada = -1;
-                    }
-                    else if (torreSelecionada != -1 &&
-                             mouse.x >= 1015 && mouse.x <= 1125)
-                    {
-                        melhorarTorre(torres, MAX_TORRES, &jogo, torreSelecionada);
-                    }
-                    else if (torreSelecionada != -1 &&
-                             mouse.x >= 1135 && mouse.x <= 1260)
-                    {
-                        if (venderTorre(torres, MAX_TORRES, &jogo, torreSelecionada))
-                        {
-                            torreSelecionada = -1;
-                        }
                     }
                 }
                 else if (mouse.x >= ORIGEM_X &&
@@ -1410,7 +1717,6 @@ int main(void)
                 {
                     int coluna = (int)((mouse.x - ORIGEM_X) / LARGURA_CELULA);
                     int linha = (int)((mouse.y - ORIGEM_Y) / ALTURA_CELULA);
-
                     int indice = selecionarTorre(torres, MAX_TORRES, linha, coluna);
 
                     if (indice != -1)
@@ -1421,21 +1727,13 @@ int main(void)
                     {
                         torreSelecionada = -1;
 
-                        construirTorre(
-                            torres,
-                            MAX_TORRES,
-                            &jogo,
-                            linha,
-                            coluna,
-                            tipoTorreSelecionada);
+                        if (tipoTorreSelecionada != -1)
+                        {
+                            construirTorre(torres, MAX_TORRES, &jogo, linha, coluna,
+                                           tipoTorreSelecionada);
+                        }
                     }
                 }
-            }
-
-            if (!onda.iniciada && !vitoria && !derrota &&
-                IsKeyPressed(KEY_SPACE))
-            {
-                iniciarOnda(&onda, jogo.onda);
             }
 
             if (!derrota && !vitoria)
@@ -1463,23 +1761,18 @@ int main(void)
                     ALTURA_CELULA);
             }
 
-            if (!derrota && !vitoria &&
-                verificarFimOnda(&onda, inimigos, MAX_INIMIGOS))
-            {
-                if (jogo.onda == 10)
-                {
-                    vitoria = 1;
-                }
-                else
-                {
-                    jogo.onda++;
-                }
-            }
-
-            if (jogo.vidaBase <= 0)
+            if (!derrota && !vitoria && jogo.vidaBase <= 0)
             {
                 jogo.vidaBase = 0;
                 derrota = 1;
+            }
+            else if (!derrota && !vitoria &&
+                     verificarFimOnda(&onda, inimigos, MAX_INIMIGOS))
+            {
+                if (jogo.onda == 10)
+                    vitoria = 1;
+                else
+                    jogo.onda++;
             }
 
             BeginDrawing();
@@ -1496,7 +1789,59 @@ int main(void)
                 tipoTorreSelecionada,
                 torreSelecionada);
 
+            if (!onda.iniciada && !vitoria && !derrota)
+                desenharMensagem("Pressione ESPACO para iniciar a proxima onda");
             EndDrawing();
+        }
+        else if (telaAtual == JOGO_PAUSADO)
+        {
+            BeginDrawing();
+            desenharPartida(&jogo, inimigos, torres, onda.iniciada,
+                            onda.inimigosCriados, onda.totalInimigos,
+                            vitoria, derrota, tipoTorreSelecionada, torreSelecionada);
+            int acaoPausa = desenharMenuPausa(&jogo);
+            EndDrawing();
+
+            if (acaoPausa == 1)
+                telaAtual = EM_JOGO;
+            else if (acaoPausa == 2)
+            {
+                if (salvarPartida("salvamento_partida.dat", &jogo, &onda, inimigos, torres, vitoria, derrota))
+                    snprintf(mensagemPausa, sizeof(mensagemPausa), "Partida salva! O arquivo salvamento_partida.dat foi atualizado.");
+                else
+                    snprintf(mensagemPausa, sizeof(mensagemPausa), "Nao foi possivel salvar. Verifique a pasta do jogo.");
+            }
+            else if (acaoPausa == 3)
+            {
+                if (carregarPartida("salvamento_partida.dat", &jogo, &onda, inimigos, torres, &vitoria, &derrota))
+                {
+                    inicializarMapa(&jogo);
+                    torreSelecionada = -1;
+                    snprintf(mensagemPausa, sizeof(mensagemPausa), "Partida carregada! Voce voltou ao ponto salvo.");
+                    telaAtual = EM_JOGO;
+                }
+                else
+                    snprintf(mensagemPausa, sizeof(mensagemPausa), "Nao existe salvamento valido para carregar.");
+            }
+            else if (acaoPausa == 4)
+            {
+                inicializarJogo(&jogo);
+                inicializarOnda(&onda);
+                inicializarMapa(&jogo);
+                inicializarInimigos(inimigos, MAX_INIMIGOS);
+                inicializarTorres(torres, MAX_TORRES);
+                tipoTorreSelecionada = TORRE_ARQUEIRO;
+                torreSelecionada = -1;
+                vitoria = 0;
+                derrota = 0;
+                resultadoRegistrado = 0;
+                nomeJogador[0] = '\0';
+                campoNomeSelecionado = 1;
+                snprintf(mensagemPausa, sizeof(mensagemPausa), "Nova partida iniciada.");
+                telaAtual = EM_JOGO;
+            }
+            else if (acaoPausa == 5)
+                telaAtual = MENU_INICIAL;
         }
     }
 
@@ -1507,6 +1852,9 @@ int main(void)
         UnloadFont(fonteInterface);
 
     CloseWindow();
+
+    free(inimigos);
+    free(torres);
 
     return 0;
 }

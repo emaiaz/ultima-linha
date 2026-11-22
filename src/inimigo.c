@@ -121,9 +121,9 @@ int criarInimigo(Inimigo inimigos[], int quantidade,
                 break;
 
             case JORMUNGANDR:
-                inimigos[i].vida = 1500;
-                inimigos[i].velocidade = 0.65f;
-                inimigos[i].danoBase = 40;
+                inimigos[i].vida = 4500;
+                inimigos[i].velocidade = 0.78f;
+                inimigos[i].danoBase = 55;
                 inimigos[i].recompensa = 200;
                 break;
 

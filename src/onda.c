@@ -19,15 +19,15 @@ int quantidadeDaOnda(int numeroOnda)
 {
     switch (numeroOnda)
     {
-        case 1: return 5;
-        case 2: return 7;
-        case 3: return 8;
-        case 4: return 10;
-        case 5: return 8;
-        case 6: return 10;
-        case 7: return 12;
-        case 8: return 14;
-        case 9: return 14;
+        case 1: return 7;
+        case 2: return 9;
+        case 3: return 12;
+        case 4: return 14;
+        case 5: return 16;
+        case 6: return 18;
+        case 7: return 20;
+        case 8: return 22;
+        case 9: return 24;
         case 10: return 1;
         default: return 0;
     }
@@ -122,8 +122,29 @@ void atualizarOnda(Onda *onda, int numeroOnda, Inimigo inimigos[], int quantidad
         TipoInimigo tipo = tipoDaOnda(numeroOnda, onda->inimigosCriados);
         int corrompido = numeroOnda == 9;
 
+        int indiceCriado = -1;
+        for (int i = 0; i < quantidade; i++)
+        {
+            if (!inimigos[i].ativo)
+            {
+                indiceCriado = i;
+                break;
+            }
+        }
+
         if (criarInimigo(inimigos, quantidade, tipo, corrompido))
         {
+            if (indiceCriado >= 0 && indiceCriado < quantidade)
+            {
+                float fatorVida = 1.0f + 0.24f * (float)(numeroOnda - 1);
+                float fatorDano = 1.0f + 0.10f * (float)(numeroOnda - 1);
+                float fatorVelocidade = 1.0f + 0.025f * (float)(numeroOnda - 1);
+                inimigos[indiceCriado].vida *= fatorVida;
+                inimigos[indiceCriado].vidaMaxima *= fatorVida;
+                inimigos[indiceCriado].danoBase = (int)(inimigos[indiceCriado].danoBase * fatorDano);
+                inimigos[indiceCriado].velocidade *= fatorVelocidade;
+                inimigos[indiceCriado].velocidadeOriginal *= fatorVelocidade;
+            }
             onda->inimigosCriados++;
             onda->tempoSpawn = 0.0f;
         }

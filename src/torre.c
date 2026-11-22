@@ -1035,12 +1035,10 @@ int venderTorre(Torre torres[], int quantidade,
         return 0;
     }
 
-    if (jogo->mapa[linha][coluna] != simbolo)
-        return 0;
-
     int reembolso = torre->valorInvestido / 2;
 
-    jogo->mapa[linha][coluna] = '.';
+    if (jogo->mapa[linha][coluna] == simbolo)
+        jogo->mapa[linha][coluna] = '.';
     jogo->moedas += reembolso;
 
     torre->ativo = 0;
