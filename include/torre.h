@@ -30,30 +30,19 @@ typedef struct
 
 void inicializarTorres(Torre torres[], int quantidade);
 
-int construirTorre(Torre torres[], int quantidade,
-                   Jogo *jogo, int linha, int coluna,
-                   TipoTorre tipo);
+int construirTorre(Torre torres[], int quantidade, Jogo *jogo, int linha, int coluna, TipoTorre tipo);
 
-int selecionarTorre(const Torre torres[], int quantidade,
-                    int linha, int coluna);
+int selecionarTorre(const Torre torres[], int quantidade, int linha, int coluna);
 
-int venderTorre(Torre torres[], int quantidade,
-                Jogo *jogo, int indice);
+int venderTorre(Torre torres[], int quantidade, Jogo *jogo, int indice);
 
-void atualizarTorres(Torre torres[], int quantidadeTorres,
-                     Inimigo inimigos[], int quantidadeInimigos,
-                     Jogo *jogo, float deltaTime,
-                     int posX, int posY,
-                     int larguraCelula, int alturaCelula);
+void atualizarTorres(Torre torres[], int quantidadeTorres, Inimigo inimigos[], int quantidadeInimigos, Jogo *jogo, float deltaTime, int posX, int posY, int larguraCelula, int alturaCelula);
 
 void inicializarTexturasTorres(void);
 void descarregarTexturasTorres(void);
 
-void desenharTorres(Torre torres[], int quantidade,
-                    int posX, int posY,
-                    int larguraCelula, int alturaCelula);
+void desenharTorres(Torre torres[], int quantidade, int posX, int posY, int larguraCelula, int alturaCelula);
 
-int melhorarTorre(Torre torres[], int quantidade,
-                  Jogo *jogo, int indice);
+int melhorarTorre(Torre torres[], int quantidade, Jogo *jogo, int indice);
 
 #endif

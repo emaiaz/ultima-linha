@@ -34,17 +34,12 @@ typedef struct
 
 void inicializarInimigos(Inimigo inimigos[], int quantidade);
 
-int criarInimigo(Inimigo inimigos[], int quantidade,
-                 TipoInimigo tipo, int corrompido);
+int criarInimigo(Inimigo inimigos[], int quantidade, TipoInimigo tipo, int corrompido);
 
-void atualizarInimigos(Inimigo inimigos[], int quantidade,
-                       Jogo *jogo, float deltaTime);
+void atualizarInimigos(Inimigo inimigos[], int quantidade, Jogo *jogo, float deltaTime);
 
-void desenharInimigos(Inimigo inimigos[], int quantidade,
-                      Jogo *jogo, int posX, int posY,
-                      int larguraCelula, int alturaCelula);
+void desenharInimigos(Inimigo inimigos[], int quantidade, Jogo *jogo, int posX, int posY, int larguraCelula, int alturaCelula);
 
-void aplicarLentidao(Inimigo inimigos[], int indice,
-                     int quantidade, float duracao);
+void aplicarLentidao(Inimigo inimigos[], int indice, int quantidade, float duracao);
 
 #endif

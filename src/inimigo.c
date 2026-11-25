@@ -4,11 +4,6 @@
 #include "raylib.h"
 #include "inimigo.h"
 
-
-/*
- * Sprites ilustrados dos inimigos. As texturas são carregadas sob demanda
- * após InitWindow() e mantidas em cache durante a partida.
- */
 static Texture2D spritesNormais[5];
 static Texture2D spritesCorrompidos[5];
 static int spritesCarregados = 0;
