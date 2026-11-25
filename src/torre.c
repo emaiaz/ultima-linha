@@ -66,6 +66,66 @@ static void desenharNivel(float x, float y, int nivel, Color cor)
     }
 }
 
+
+static Texture2D texturasTorres[3] = {{0}};
+
+void inicializarTexturasTorres(void)
+{
+    const char *arquivos[3] = {
+        "assets/torres/archer.png",
+        "assets/torres/ice.png",
+        "assets/torres/thunder.png"};
+    for (int i = 0; i < 3; i++)
+    {
+        if (texturasTorres[i].id == 0)
+        {
+            texturasTorres[i] = LoadTexture(arquivos[i]);
+            if (texturasTorres[i].id != 0)
+                SetTextureFilter(texturasTorres[i], TEXTURE_FILTER_BILINEAR);
+        }
+    }
+}
+
+void descarregarTexturasTorres(void)
+{
+    for (int i = 0; i < 3; i++)
+    {
+        if (texturasTorres[i].id != 0)
+        {
+            UnloadTexture(texturasTorres[i]);
+            texturasTorres[i] = (Texture2D){0};
+        }
+    }
+}
+
+static void desenharSpriteTorre(float x, float y, int nivel, int tipo)
+{
+    if (tipo < 0 || tipo >= 3 || texturasTorres[tipo].id == 0)
+        return;
+    Texture2D textura = texturasTorres[tipo];
+    float escala = 1.0f + (nivel - 1) * 0.055f;
+    float largura = 66.0f * escala;
+    float altura = 76.0f * escala;
+    if (nivel >= 2)
+        DrawCircleGradient((Vector2){x, y - 20.0f}, 35.0f,
+                           tipo == 2 ? (Color){174, 87, 245, 48} :
+                           tipo == 1 ? (Color){79, 205, 246, 45} :
+                                       (Color){226, 178, 93, 38}, BLANK);
+    Rectangle origem = {0, 0, (float)textura.width, (float)textura.height};
+    Rectangle destino = {x - largura / 2.0f, y - altura + 12.0f, largura, altura};
+    DrawTexturePro(textura, origem, destino, (Vector2){0, 0}, 0.0f, WHITE);
+    Color corNivel = tipo == 2 ? (Color){203, 135, 255, 255} :
+                     tipo == 1 ? (Color){143, 226, 255, 255} :
+                                 (Color){238, 202, 130, 255};
+    desenharNivel(x, y, nivel, corNivel);
+    if (nivel >= 3)
+    {
+        float pulso = 0.5f + 0.5f * sinf((float)GetTime() * 2.6f);
+        DrawCircleLines((int)x, (int)(y - 23), 29.0f + pulso * 2.0f,
+                        (Color){corNivel.r, corNivel.g, corNivel.b, 110});
+    }
+}
+
 static void desenharRaioRoxo(Vector2 inicio, Vector2 fim, float intensidade, float variacao)
 {
     Vector2 meio1 = {
@@ -1264,15 +1324,15 @@ void desenharTorres(Torre torres[], int quantidade,
         switch (torres[i].tipo)
         {
         case TORRE_ARQUEIRO:
-            desenharTorreArqueiro(x, y, torres[i].nivel);
+            desenharSpriteTorre(x, y, torres[i].nivel, 0);
             break;
 
         case TORRE_GELO:
-            desenharTorreGelo(x, y, torres[i].nivel);
+            desenharSpriteTorre(x, y, torres[i].nivel, 1);
             break;
 
         case TORRE_TROVAO:
-            desenharTorreTrovao(x, y, torres[i].nivel);
+            desenharSpriteTorre(x, y, torres[i].nivel, 2);
             break;
 
         default:

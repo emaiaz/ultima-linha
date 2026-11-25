@@ -76,6 +76,4 @@ Esses arquivos são binários. Não é necessário abri-los ou editá-los manual
 - `docs/relatorio.pdf`: relatório do projeto.
 - `docs/contribuicoes.md`: registro de participação da equipe.
 
-## Observação sobre a entrega
 
-O roteiro de testes descreve o comportamento esperado e possui espaço para registrar o resultado observado. Os testes só devem ser marcados como aprovados depois de executados na máquina da equipe. O histórico de contribuições também deve ser conferido pelos integrantes para representar fielmente o trabalho de cada pessoa.

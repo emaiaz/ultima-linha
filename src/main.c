@@ -8,10 +8,10 @@
 #include "raylib.h"
 #include "jogo.h"
 #include "mapa.h"
+#include "torre.h"
 #include "inimigo.h"
 #include "visual.h"
 #include "onda.h"
-#include "torre.h"
 #include "persistencia.h"
 
 #define LARGURA_TELA 1280
@@ -34,6 +34,9 @@ typedef enum
 
 static Font fonteTitulo;
 static Font fonteInterface;
+static Texture2D fundoMenuTextura = {0};
+static RenderTexture2D telaLogica = {0};
+static Rectangle areaViewport = {0};
 
 static int fonteTituloCarregada = 0;
 static int fonteInterfaceCarregada = 0;
@@ -44,6 +47,51 @@ static const Color COR_PELE = {224, 178, 137, 255};
 static const Color COR_BORDA = {117, 91, 53, 255};
 static const Color COR_TEXTO = {245, 239, 218, 255};
 static const Color COR_ROXO = {151, 91, 210, 255};
+
+/* Renderiza toda a interface em 1280x720 e escala para a resolucao do monitor. */
+static void atualizarViewport(void)
+{
+    float escalaX = (float)GetScreenWidth() / (float)LARGURA_TELA;
+    float escalaY = (float)GetScreenHeight() / (float)ALTURA_TELA;
+    float escala = escalaX < escalaY ? escalaX : escalaY;
+    float largura = LARGURA_TELA * escala;
+    float altura = ALTURA_TELA * escala;
+    areaViewport = (Rectangle){
+        ((float)GetScreenWidth() - largura) * 0.5f,
+        ((float)GetScreenHeight() - altura) * 0.5f,
+        largura,
+        altura};
+}
+
+static Vector2 obterMouseLogico(void)
+{
+    Vector2 mouse = GetMousePosition();
+    atualizarViewport();
+    if (areaViewport.width <= 0.0f || areaViewport.height <= 0.0f)
+        return (Vector2){-1.0f, -1.0f};
+    return (Vector2){
+        (mouse.x - areaViewport.x) * LARGURA_TELA / areaViewport.width,
+        (mouse.y - areaViewport.y) * ALTURA_TELA / areaViewport.height};
+}
+
+static void iniciarDesenhoLogico(void)
+{
+    BeginDrawing();
+    ClearBackground(BLACK);
+    BeginTextureMode(telaLogica);
+    ClearBackground(BLACK);
+}
+
+static void finalizarDesenhoLogico(void)
+{
+    EndTextureMode();
+    atualizarViewport();
+    Rectangle origem = {0.0f, 0.0f, (float)telaLogica.texture.width,
+                         -(float)telaLogica.texture.height};
+    DrawTexturePro(telaLogica.texture, origem, areaViewport,
+                   (Vector2){0.0f, 0.0f}, 0.0f, WHITE);
+    EndDrawing();
+}
 
 static void desenharTextoUI(const char *texto, float x, float y, float tamanho, Color cor)
 {
@@ -103,27 +151,27 @@ static void desenharContorno(Rectangle area, Color cor, float espessura)
 
 static int desenharBotao(Rectangle botao, const char *texto, int destaque)
 {
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = obterMouseLogico();
     int sobre = CheckCollisionPointRec(mouse, botao);
     float tempo = (float)GetTime();
 
     Color fundo = destaque
-                      ? (Color){65, 112, 78, 255}
-                      : (Color){39, 67, 76, 255};
+                      ? (Color){28, 91, 112, 255}
+                      : (Color){24, 43, 67, 255};
 
     Color borda = destaque
-                      ? (Color){189, 229, 132, 255}
-                      : (Color){125, 177, 184, 255};
+                      ? (Color){103, 235, 229, 255}
+                      : (Color){83, 145, 174, 255};
 
     Color corTexto = RAYWHITE;
 
     if (sobre)
     {
         fundo = destaque
-                    ? (Color){88, 151, 94, 255}
-                    : (Color){55, 101, 112, 255};
+                    ? (Color){38, 126, 148, 255}
+                    : (Color){39, 72, 103, 255};
 
-        borda = (Color){255, 229, 139, 255};
+        borda = (Color){153, 250, 239, 255};
     }
 
     if (destaque)
@@ -132,7 +180,7 @@ static int desenharBotao(Rectangle botao, const char *texto, int destaque)
             (Rectangle){botao.x - 4, botao.y - 4, botao.width + 8, botao.height + 8},
             0.2f,
             8,
-            (Color){255, 218, 111, sobre ? 75 : 35});
+            (Color){72, 221, 230, sobre ? 75 : 35});
     }
 
     DrawRectangleRounded(
@@ -158,7 +206,7 @@ static int desenharBotao(Rectangle botao, const char *texto, int destaque)
             (int)(botao.x + 22),
             (int)(botao.y + botao.height / 2),
             4 + brilho * 2,
-            (Color){255, 229, 137, 220});
+            (Color){157, 249, 240, 220});
     }
 
     float tamanhoFonte = botao.height >= 64 ? 24.0f : botao.height >= 50 ? 21.0f
@@ -335,18 +383,28 @@ static void desenharYggdrasil(void)
 
 static void desenharCenarioMenu(void)
 {
+    if (fundoMenuTextura.id != 0)
+    {
+        Rectangle origem = {0, 0, (float)fundoMenuTextura.width, (float)fundoMenuTextura.height};
+        Rectangle destino = {0, 0, (float)LARGURA_TELA, (float)ALTURA_TELA};
+        DrawTexturePro(fundoMenuTextura, origem, destino, (Vector2){0, 0}, 0.0f, WHITE);
+        DrawRectangleGradientV(0, 0, LARGURA_TELA, ALTURA_TELA,
+                               (Color){5, 13, 30, 35}, (Color){5, 13, 30, 105});
+        return;
+    }
     float tempo = (float)GetTime();
 
-    ClearBackground((Color){93, 166, 177, 255});
+    ClearBackground((Color){8, 13, 29, 255});
 
     DrawRectangleGradientV(
         0, 0,
         LARGURA_TELA, ALTURA_TELA,
-        (Color){87, 160, 181, 255},
-        (Color){192, 215, 176, 255});
+        (Color){8, 20, 38, 255},
+        (Color){31, 54, 62, 255});
 
-    DrawCircle(1030, 115, 72, (Color){255, 229, 153, 75});
-    DrawCircle(1030, 115, 45, (Color){255, 230, 164, 255});
+    DrawCircleGradient((Vector2){1030, 115}, 90, (Color){112, 165, 210, 45}, BLANK);
+    DrawCircle(1030, 115, 45, (Color){182, 206, 225, 220});
+    DrawCircle(1048, 101, 40, (Color){8, 20, 38, 255});
 
     desenharNuvem(160 + sinf(tempo * 0.15f) * 18, 145, 0.9f);
     desenharNuvem(390 + sinf(tempo * 0.12f) * 12, 90, 0.65f);
@@ -357,18 +415,18 @@ static void desenharCenarioMenu(void)
     DrawRectangleGradientV(
         0, 350,
         LARGURA_TELA, 370,
-        (Color){77, 146, 87, 255},
-        (Color){34, 89, 57, 255});
+        (Color){24, 54, 49, 255},
+        (Color){7, 22, 25, 255});
 
-    DrawEllipse(640, 460, 390, 115, (Color){115, 172, 96, 255});
-    DrawEllipse(640, 485, 310, 75, (Color){139, 187, 103, 255});
+    DrawEllipse(640, 460, 390, 115, (Color){31, 68, 57, 255});
+    DrawEllipse(640, 485, 310, 75, (Color){21, 48, 44, 255});
 
     desenharYggdrasil();
 
-    desenharArvoreMenu(55, 430, 1.45f, (Color){29, 92, 57, 255});
-    desenharArvoreMenu(170, 450, 1.0f, (Color){35, 111, 62, 255});
-    desenharArvoreMenu(1100, 430, 1.45f, (Color){29, 92, 57, 255});
-    desenharArvoreMenu(1210, 450, 1.0f, (Color){35, 111, 62, 255});
+    desenharArvoreMenu(55, 430, 1.45f, (Color){15, 48, 42, 255});
+    desenharArvoreMenu(170, 450, 1.0f, (Color){19, 58, 48, 255});
+    desenharArvoreMenu(1100, 430, 1.45f, (Color){15, 48, 42, 255});
+    desenharArvoreMenu(1210, 450, 1.0f, (Color){19, 58, 48, 255});
 
     for (int i = 0; i < 35; i++)
     {
@@ -796,8 +854,6 @@ static void desenharMenuInicialDecoracao(void)
     float tempo = (float)GetTime();
 
     desenharCenarioMenu();
-    desenharCriaturasMenu();
-    desenharHeroisMenu();
 
     for (int i = 0; i < 24; i++)
     {
@@ -965,7 +1021,7 @@ static int desenharTelaRecordes(void)
 static int desenharTelaNomeJogador(char nome[], int capacidade, int *campoSelecionado)
 {
     Rectangle campo = {350, 365, 580, 66};
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = obterMouseLogico();
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         *campoSelecionado = CheckCollisionPointRec(mouse, campo);
@@ -1526,7 +1582,17 @@ int main(void)
     inicializarInimigos(inimigos, MAX_INIMIGOS);
     inicializarTorres(torres, MAX_TORRES);
 
+    SetConfigFlags(FLAG_FULLSCREEN_MODE);
     InitWindow(LARGURA_TELA, ALTURA_TELA, "Ragnarok: Ultima Defesa");
+    telaLogica = LoadRenderTexture(LARGURA_TELA, ALTURA_TELA);
+    SetTextureFilter(telaLogica.texture, TEXTURE_FILTER_BILINEAR);
+    atualizarViewport();
+
+    fundoMenuTextura = LoadTexture("assets/imagens/menu_nordico.png");
+    if (fundoMenuTextura.id != 0)
+        SetTextureFilter(fundoMenuTextura, TEXTURE_FILTER_BILINEAR);
+
+    inicializarTexturasTorres();
 
     SetTargetFPS(FPS);
     SetExitKey(KEY_NULL);
@@ -1559,11 +1625,11 @@ int main(void)
 
         if (telaAtual == MENU_INICIAL)
         {
-            BeginDrawing();
+            iniciarDesenhoLogico();
 
             int escolha = desenharMenuInicial();
 
-            EndDrawing();
+            finalizarDesenhoLogico();
 
             if (escolha == 1)
             {
@@ -1597,19 +1663,19 @@ int main(void)
         }
         else if (telaAtual == MENU_RECORDE)
         {
-            BeginDrawing();
+            iniciarDesenhoLogico();
             int voltar = desenharTelaRecordes();
-            EndDrawing();
+            finalizarDesenhoLogico();
             if (voltar || IsKeyPressed(KEY_ESCAPE))
                 telaAtual = MENU_INICIAL;
         }
         else if (telaAtual == MENU_INSTRUCOES)
         {
-            BeginDrawing();
+            iniciarDesenhoLogico();
 
             int voltar = desenharInstrucoes();
 
-            EndDrawing();
+            finalizarDesenhoLogico();
 
             if (voltar || IsKeyPressed(KEY_ESCAPE))
                 telaAtual = MENU_INICIAL;
@@ -1617,7 +1683,7 @@ int main(void)
         else if (telaAtual == EM_JOGO)
         {
             if (!vitoria && !derrota && IsMouseButtonReleased(MOUSE_BUTTON_LEFT) &&
-                CheckCollisionPointRec(GetMousePosition(), (Rectangle){1080, 20, 175, 65}))
+                CheckCollisionPointRec(obterMouseLogico(), (Rectangle){1080, 20, 175, 65}))
                 telaAtual = JOGO_PAUSADO;
 
             if (!vitoria && !derrota && IsKeyPressed(KEY_SPACE) && !onda.iniciada)
@@ -1627,12 +1693,12 @@ int main(void)
             {
                 if (!resultadoRegistrado)
                 {
-                    BeginDrawing();
+                    iniciarDesenhoLogico();
                     desenharPartida(&jogo, inimigos, torres, onda.iniciada,
                                     onda.inimigosCriados, onda.totalInimigos,
                                     vitoria, derrota, tipoTorreSelecionada, torreSelecionada);
                     int confirmouNome = desenharTelaNomeJogador(nomeJogador, TAM_NOME_JOGADOR, &campoNomeSelecionado);
-                    EndDrawing();
+                    finalizarDesenhoLogico();
 
                     if (confirmouNome)
                     {
@@ -1647,12 +1713,12 @@ int main(void)
                     continue;
                 }
 
-                BeginDrawing();
+                iniciarDesenhoLogico();
                 desenharPartida(&jogo, inimigos, torres, onda.iniciada,
                                 onda.inimigosCriados, onda.totalInimigos,
                                 vitoria, derrota, tipoTorreSelecionada, torreSelecionada);
                 int escolhaFinal = desenharBotoesTelaFinal();
-                EndDrawing();
+                finalizarDesenhoLogico();
 
                 if (escolhaFinal == 1)
                 {
@@ -1677,7 +1743,7 @@ int main(void)
             if (!vitoria && !derrota &&
                 IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
             {
-                Vector2 mouse = GetMousePosition();
+                Vector2 mouse = obterMouseLogico();
                 Rectangle botaoMelhoria = {1015, 635, 110, 65};
                 Rectangle botaoVenda = {1135, 635, 115, 65};
 
@@ -1775,7 +1841,7 @@ int main(void)
                     jogo.onda++;
             }
 
-            BeginDrawing();
+            iniciarDesenhoLogico();
 
             desenharPartida(
                 &jogo,
@@ -1791,16 +1857,16 @@ int main(void)
 
             if (!onda.iniciada && !vitoria && !derrota)
                 desenharMensagem("Pressione ESPACO para iniciar a proxima onda");
-            EndDrawing();
+            finalizarDesenhoLogico();
         }
         else if (telaAtual == JOGO_PAUSADO)
         {
-            BeginDrawing();
+            iniciarDesenhoLogico();
             desenharPartida(&jogo, inimigos, torres, onda.iniciada,
                             onda.inimigosCriados, onda.totalInimigos,
                             vitoria, derrota, tipoTorreSelecionada, torreSelecionada);
             int acaoPausa = desenharMenuPausa(&jogo);
-            EndDrawing();
+            finalizarDesenhoLogico();
 
             if (acaoPausa == 1)
                 telaAtual = EM_JOGO;
@@ -1844,6 +1910,12 @@ int main(void)
                 telaAtual = MENU_INICIAL;
         }
     }
+
+    descarregarTexturasTorres();
+    if (fundoMenuTextura.id != 0)
+        UnloadTexture(fundoMenuTextura);
+    if (telaLogica.id != 0)
+        UnloadRenderTexture(telaLogica);
 
     if (fonteTituloCarregada)
         UnloadFont(fonteTitulo);

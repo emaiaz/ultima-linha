@@ -46,6 +46,9 @@ void atualizarTorres(Torre torres[], int quantidadeTorres,
                      int posX, int posY,
                      int larguraCelula, int alturaCelula);
 
+void inicializarTexturasTorres(void);
+void descarregarTexturasTorres(void);
+
 void desenharTorres(Torre torres[], int quantidade,
                     int posX, int posY,
                     int larguraCelula, int alturaCelula);
